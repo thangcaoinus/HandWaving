@@ -1,0 +1,132 @@
+// Prisma Schema for Gesture Collab Canvas
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User accounts
+model User {
+  id            String    @id @default(uuid())
+  email         String?   @unique  // Nullable for guests
+  username      String    @unique
+  passwordHash  String?              // Nullable for guests
+  displayName   String?
+  avatarUrl     String?
+  isGuest       Boolean   @default(false)  // Flag for temporary guest accounts
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  ownedCanvases Canvas[]  @relation("CanvasOwner")
+  collaborations Collaboration[]
+  sessions      Session[]
+
+  @@index([email])
+  @@index([username])
+  @@index([isGuest, createdAt])  // For cleanup job
+}
+
+// Canvas data storage
+model Canvas {
+  id            String    @id @default(uuid())
+  title         String    @default("Untitled Canvas")
+  description   String?
+
+  // Canvas data stored as JSON (strokes, viewport, metadata)
+  data          Json
+
+  // Thumbnail for gallery view
+  thumbnailUrl  String?
+
+  // Access control
+  isPublic      Boolean   @default(false)
+  isTemplate    Boolean   @default(false)
+
+  // Link sharing
+  linkSharingEnabled Boolean   @default(true)
+  shareToken         String?   @unique @default(uuid())
+  tokenExpiresAt     DateTime?
+  shareRole          CollaborationRole @default(EDITOR)  // Role granted via share link
+
+  // Ownership
+  ownerId       String
+  owner         User      @relation("CanvasOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastAccessedAt DateTime @default(now())
+
+  // Relations
+  collaborations Collaboration[]
+  tags          CanvasTag[]
+
+  @@index([ownerId])
+  @@index([isPublic])
+  @@index([updatedAt])
+  @@index([lastAccessedAt])
+  @@index([shareToken])  // For fast share link lookups
+}
+
+// Canvas sharing and permissions
+model Collaboration {
+  id          String    @id @default(uuid())
+  canvasId    String
+  userId      String
+  role        CollaborationRole @default(VIEWER)
+
+  canvas      Canvas    @relation(fields: [canvasId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+
+  @@unique([canvasId, userId])
+  @@index([userId])
+  @@index([canvasId])
+}
+
+enum CollaborationRole {
+  VIEWER      // Can only view
+  EDITOR      // Can edit
+  ADMIN       // Can manage permissions
+}
+
+// Tags for organizing canvases
+model Tag {
+  id      String      @id @default(uuid())
+  name    String      @unique
+  canvases CanvasTag[]
+
+  @@index([name])
+}
+
+// Junction table for Canvas <-> Tag many-to-many
+model CanvasTag {
+  canvasId  String
+  tagId     String
+
+  canvas    Canvas @relation(fields: [canvasId], references: [id], onDelete: Cascade)
+  tag       Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([canvasId, tagId])
+}
+
+// Active login sessions
+model Session {
+  id          String   @id @default(uuid())
+  userId      String
+  token       String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}

@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+* {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* Hand-drawn wobbly borders */
+@keyframes wobble-border {
+  0%, 100% { 
+    border-radius: 12px 14px 11px 13px / 13px 11px 14px 12px;
+  }
+  50% { 
+    border-radius: 13px 12px 14px 11px / 12px 13px 11px 14px;
+  }
+}
+
+/* Rough sketch effect for panels */
+.sketch-panel {
+  border-radius: 12px 14px 11px 13px / 13px 11px 14px 12px;
+  box-shadow: 
+    2px 2px 0 rgba(0, 0, 0, 0.1),
+    4px 4px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Slight rotation for buttons to feel hand-placed */
+.sketch-button {
+  border-radius: 6px 8px 7px 6px / 7px 6px 8px 7px;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.sketch-button:hover {
+  transform: translateY(-2px) rotate(-1deg);
+}
+
+.sketch-button:active {
+  transform: translateY(0) rotate(0deg);
+}
+
+/* Wiggle animation for active states */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-1deg) scale(1.05); }
+  50% { transform: rotate(1deg) scale(1.05); }
+}
+
+.sketch-active {
+  animation: wiggle 0.3s ease-in-out;
+  /* Animation plays once, not infinite */
+}
+
+/* Hand-drawn underlines */
+.sketch-underline {
+  position: relative;
+}
+
+.sketch-underline::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  bottom: -4px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 50%;
+  opacity: 0.4;
+}
