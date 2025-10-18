@@ -98,55 +98,55 @@ export default function LandingPage() {
             {/* Top left area */}
             <circle cx="8%" cy="12%" r="25" fill="none" stroke="#f08080" strokeWidth="3" />
             <rect x="3%" y="8%" width="30" height="25" fill="none" stroke="#ffa07a" strokeWidth="2.5" transform="rotate(-12 5% 10%)" />
-            <path d="M 15% 18% L 18% 14% L 21% 18% Z" fill="none" stroke="#f8ad9d" strokeWidth="2.5" />
+            <path d="M 240 162 L 288 126 L 336 162 Z" fill="none" stroke="#f8ad9d" strokeWidth="2.5" />
 
             {/* Top center */}
             <circle cx="45%" cy="8%" r="20" fill="none" stroke="#fbc4ab" strokeWidth="3" />
-            <path d="M 38% 15% Q 40% 12%, 42% 15% T 46% 15%" fill="none" stroke="#f08080" strokeWidth="2.5" />
+            <path d="M 608 135 Q 640 108 672 135 T 736 135" fill="none" stroke="#f08080" strokeWidth="2.5" />
             <rect x="50%" y="5%" width="35" height="20" fill="none" stroke="#ffa07a" strokeWidth="2.5" transform="rotate(8 52% 8%)" />
 
             {/* Top right area */}
             <circle cx="75%" cy="10%" r="22" fill="none" stroke="#f8ad9d" strokeWidth="3" />
-            <path d="M 82% 15% L 92% 15% M 89% 12% L 92% 15% L 89% 18%" fill="none" stroke="#f08080" strokeWidth="3" />
-            <path d="M 88% 8% L 95% 12% L 91% 18% Z" fill="none" stroke="#fbc4ab" strokeWidth="2.5" />
+            <path d="M 1312 135 L 1472 135 M 1424 108 L 1472 135 L 1424 162" fill="none" stroke="#f08080" strokeWidth="3" />
+            <path d="M 1408 72 L 1520 108 L 1456 162 Z" fill="none" stroke="#fbc4ab" strokeWidth="2.5" />
 
             {/* Left side middle */}
-            <path d="M 5% 35% L 12% 30% L 14% 38% Z" fill="none" stroke="#f08080" strokeWidth="2.5" transform="rotate(-5 8% 35%)" />
+            <path d="M 80 315 L 192 270 L 224 342 Z" fill="none" stroke="#f08080" strokeWidth="2.5" transform="rotate(-5 8% 35%)" />
             <rect x="3%" y="42%" width="40" height="30" fill="none" stroke="#ffa07a" strokeWidth="3" transform="rotate(-8 7% 47%)" />
             <circle cx="10%" cy="60%" r="18" fill="none" stroke="#f8ad9d" strokeWidth="2.5" />
 
             {/* Center area */}
-            <path d="M 42% 40% Q 45% 38%, 48% 40% T 54% 40%" fill="none" stroke="#fbc4ab" strokeWidth="3" />
+            <path d="M 672 360 Q 720 342 768 360 T 864 360" fill="none" stroke="#fbc4ab" strokeWidth="3" />
             <circle cx="55%" cy="52%" r="28" fill="none" stroke="#f08080" strokeWidth="2.5" />
             <rect x="35%" y="58%" width="38" height="32" fill="none" stroke="#f8ad9d" strokeWidth="2.5" transform="rotate(5 40% 62%)" />
 
             {/* Right side middle */}
-            <path d="M 85% 35% L 90% 40% L 82% 42% Z" fill="none" stroke="#ffa07a" strokeWidth="2.5" />
+            <path d="M 1360 315 L 1440 360 L 1312 378 Z" fill="none" stroke="#ffa07a" strokeWidth="2.5" />
             <circle cx="92%" cy="48%" r="24" fill="none" stroke="#f08080" strokeWidth="3" />
-            <path d="M 85% 55% Q 88% 52%, 91% 55% T 95% 58%" fill="none" stroke="#fbc4ab" strokeWidth="3" />
+            <path d="M 1360 495 Q 1408 468 1456 495 T 1520 522" fill="none" stroke="#fbc4ab" strokeWidth="3" />
             <rect x="82%" y="60%" width="32" height="28" fill="none" stroke="#f8ad9d" strokeWidth="2.5" transform="rotate(-10 88% 65%)" />
 
             {/* Bottom left area */}
             <circle cx="8%" cy="75%" r="26" fill="none" stroke="#fbc4ab" strokeWidth="3" />
-            <path d="M 15% 82% L 22% 77% L 24% 85% Z" fill="none" stroke="#f08080" strokeWidth="2.5" />
+            <path d="M 240 738 L 352 693 L 384 765 Z" fill="none" stroke="#f08080" strokeWidth="2.5" />
             <rect x="3%" y="88%" width="35" height="25" fill="none" stroke="#ffa07a" strokeWidth="2.5" transform="rotate(6 8% 92%)" />
 
             {/* Bottom center */}
-            <path d="M 40% 85% L 48% 85% M 45% 82% L 48% 85% L 45% 88%" fill="none" stroke="#f8ad9d" strokeWidth="3" />
+            <path d="M 640 765 L 768 765 M 720 738 L 768 765 L 720 792" fill="none" stroke="#f8ad9d" strokeWidth="3" />
             <circle cx="52% " cy="78%" r="20" fill="none" stroke="#f08080" strokeWidth="2.5" />
-            <path d="M 35% 92% L 42% 88% L 45% 94% Z" fill="none" stroke="#fbc4ab" strokeWidth="2.5" />
+            <path d="M 560 828 L 672 792 L 720 846 Z" fill="none" stroke="#fbc4ab" strokeWidth="2.5" />
 
             {/* Bottom right area */}
-            <path d="M 78% 75% L 84% 82% L 72% 84% Z" fill="none" stroke="#f08080" strokeWidth="3" />
+            <path d="M 1248 675 L 1344 738 L 1152 756 Z" fill="none" stroke="#f08080" strokeWidth="3" />
             <circle cx="88%" cy="80%" r="23" fill="none" stroke="#ffa07a" strokeWidth="3" />
             <rect x="75%" y="88%" width="36" height="24" fill="none" stroke="#f8ad9d" strokeWidth="2.5" transform="rotate(-7 80% 92%)" />
-            <path d="M 90% 90% Q 92% 88%, 94% 90% T 96% 94%" fill="none" stroke="#fbc4ab" strokeWidth="2.5" />
+            <path d="M 1440 810 Q 1472 792 1504 810 T 1536 846" fill="none" stroke="#fbc4ab" strokeWidth="2.5" />
 
             {/* Extra scattered small elements */}
             <circle cx="25%" cy="30%" r="15" fill="none" stroke="#f08080" strokeWidth="2" />
-            <path d="M 68% 25% L 72% 25% L 70% 30% Z" fill="none" stroke="#ffa07a" strokeWidth="2" />
+            <path d="M 1088 225 L 1152 225 L 1120 270 Z" fill="none" stroke="#ffa07a" strokeWidth="2" />
             <circle cx="30%" cy="72%" r="16" fill="none" stroke="#f8ad9d" strokeWidth="2" />
-            <path d="M 62% 68% L 66% 70% L 63% 74% Z" fill="none" stroke="#fbc4ab" strokeWidth="2" />
+            <path d="M 992 612 L 1056 630 L 1008 666 Z" fill="none" stroke="#fbc4ab" strokeWidth="2" />
           </svg>
 
           <div className="relative z-10 px-6 md:px-10 lg:px-12 py-8 md:py-10 lg:py-12 text-center">
