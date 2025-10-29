@@ -6,15 +6,20 @@ import rateLimit from 'express-rate-limit';
 // Strict rate limiter for authentication endpoints
 // Prevents brute force attacks on login/register
 export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts per window
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'development' ? 100 : 5,
+  keyGenerator: (req) => {
+    const email = req.body?.email || 'anonymous';
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    return `${email}:${ip}`;
+  },
   message: {
     error: 'Too many authentication attempts. Please try again in 15 minutes.',
-    retryAfter: 15 * 60, // seconds
+    retryAfter: 15 * 60,
   },
-  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
-  legacyHeaders: false, // Disable `X-RateLimit-*` headers
-  skipSuccessfulRequests: false, // Count both successful and failed attempts
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
   handler: (req, res) => {
     res.status(429).json({
       error: 'Too many requests',
@@ -27,15 +32,16 @@ export const authLimiter = rateLimit({
 // Heavy upload rate limiter
 // Prevents DoS via large file uploads
 export const uploadLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // 10 uploads per hour
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => req.user?.id || req.ip || 'anonymous',
   message: {
     error: 'Too many upload attempts. Please try again later.',
     retryAfter: 60 * 60,
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true, // Only count failed/large uploads
+  skipSuccessfulRequests: true,
   handler: (req, res) => {
     res.status(429).json({
       error: 'Too many requests',
@@ -69,8 +75,9 @@ export const apiLimiter = rateLimit({
 // Password change limiter (stricter than general API)
 // Prevents brute force attempts on password change
 export const passwordChangeLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // 3 password changes per hour
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  keyGenerator: (req) => req.user?.id || req.ip || 'anonymous',
   message: {
     error: 'Too many password change attempts.',
     retryAfter: 60 * 60,
@@ -89,15 +96,16 @@ export const passwordChangeLimiter = rateLimit({
 // Canvas creation limiter
 // Prevents spam canvas creation
 export const canvasCreationLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // 20 new canvases per hour
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => req.user?.id || req.ip || 'anonymous',
   message: {
     error: 'Too many canvases created.',
     retryAfter: 60 * 60,
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true, // Only count successful creations
+  skipSuccessfulRequests: true,
   handler: (req, res) => {
     res.status(429).json({
       error: 'Too many requests',

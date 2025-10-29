@@ -20,6 +20,9 @@ import logger from "./utils/logger.js";
 const app = express();
 const server = createServer(app);
 
+// Trust proxy - Railway/Render/Vercel use reverse proxies, need this to get real client IPs
+app.set('trust proxy', 1);
+
 // CORS configuration - uses CLIENT_URL from env, falls back to localhost for development
 const allowedOrigins = process.env.CLIENT_URL
   ? [process.env.CLIENT_URL]
