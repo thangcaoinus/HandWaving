@@ -15,10 +15,12 @@ export const validateDisplayName = [
 // Validation rules for changing password
 export const validatePasswordChange = [
   body('currentPassword')
+    .trim()
     .notEmpty()
     .withMessage('Current password is required'),
 
   body('newPassword')
+    .trim()
     .notEmpty()
     .withMessage('New password is required')
     .isLength({ min: 8 })

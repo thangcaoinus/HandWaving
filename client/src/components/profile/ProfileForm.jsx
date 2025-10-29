@@ -16,7 +16,7 @@ export function ProfileForm() {
     setSuccess('');
 
     try {
-      const updatedUser = await updateDisplayName(displayName);
+      const updatedUser = await updateDisplayName(displayName.trim());
       updateUser(updatedUser);
       setSuccess('Display name updated successfully!');
     } catch (err) {

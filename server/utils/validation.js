@@ -15,6 +15,7 @@ export const validateRegister = [
     .withMessage('Username can only contain letters, numbers, and underscores'),
   
   body('password')
+    .trim()
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters')
     .matches(/[a-z]/)
@@ -38,8 +39,9 @@ export const validateLogin = [
     .isEmail()
     .normalizeEmail()
     .withMessage('Valid email is required'),
-  
+
   body('password')
+    .trim()
     .notEmpty()
     .withMessage('Password is required'),
 ];

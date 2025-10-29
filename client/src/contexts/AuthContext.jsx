@@ -59,7 +59,12 @@ export function AuthProvider({ children }) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, username, password, displayName }),
+      body: JSON.stringify({
+        email: email.trim(),
+        username: username.trim(),
+        password: password.trim(),
+        displayName: displayName?.trim()
+      }),
     });
 
     const data = await response.json();
@@ -81,7 +86,10 @@ export function AuthProvider({ children }) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({
+        email: email.trim(),
+        password: password.trim()
+      }),
     });
 
     const data = await response.json();

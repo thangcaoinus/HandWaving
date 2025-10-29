@@ -16,18 +16,21 @@ export function PasswordChangeForm() {
     setSuccess('');
 
     // Client-side validation
-    if (newPassword !== confirmPassword) {
+    const trimmedNew = newPassword.trim();
+    const trimmedConfirm = confirmPassword.trim();
+
+    if (trimmedNew !== trimmedConfirm) {
       setError('New passwords do not match');
       return;
     }
 
-    if (newPassword.length < 8) {
+    if (trimmedNew.length < 8) {
       setError('Password must be at least 8 characters');
       return;
     }
 
     try {
-      await changePassword(currentPassword, newPassword);
+      await changePassword(currentPassword.trim(), newPassword.trim());
       setSuccess('Password changed successfully!');
       // Clear form
       setCurrentPassword('');
