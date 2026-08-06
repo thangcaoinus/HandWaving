@@ -37,19 +37,19 @@ export default function PropertiesSidebar() {
   ];
 
   return (
-    <div className="fixed left-4 top-24 w-52 bg-white sketch-panel border-2 border-black/5 p-3 z-10">
+    <div className="fixed left-4 top-24 w-52 paper-card sketch-panel border-2 border-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] p-3 z-10">
       {/* Header */}
-      <div className="flex items-center gap-1.5 mb-3 pb-2 border-b-2 border-dashed border-gray-200">
-        <Palette size={14} strokeWidth={2.5} style={{ color: '#f08080' }} />
-        <h3 className="text-sm font-bold text-gray-800">
+      <div className="flex items-center gap-1.5 mb-3 pb-2 border-b-2 border-dashed border-[color:color-mix(in_srgb,var(--ink)_15%,transparent)]">
+        <Palette size={14} strokeWidth={2.5} style={{ color: 'var(--coral)' }} />
+        <h3 className="font-display text-base text-[color:var(--ink)]">
           {brushType === 1 ? "Draw" : brushType === 2 ? "Smart Shape" : "Insert Shape"}
         </h3>
       </div>
 
       {/* Color Picker Section */}
       <div className="mb-3">
-        <label className="flex items-center gap-1 text-[10px] font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
-          <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#f08080' }}></span>
+        <label className="flex items-center gap-1 text-[10px] font-bold text-[color:var(--ink-soft)] mb-1.5 uppercase tracking-wide">
+          <span className="w-1 h-1 rounded-full" style={{ backgroundColor: 'var(--coral)' }}></span>
           Color
         </label>
         
@@ -62,11 +62,11 @@ export default function PropertiesSidebar() {
               className={`w-full aspect-square rounded-md transition-all duration-150 hover:scale-110 hover:shadow-md border-2 ${
                 brushSettings.color.toUpperCase() === preset.value.toUpperCase()
                   ? "shadow-md scale-105"
-                  : "border-gray-200 hover:border-gray-300"
+                  : "border-[color:color-mix(in_srgb,var(--ink)_15%,transparent)] hover:border-[color:color-mix(in_srgb,var(--ink)_30%,transparent)]"
               }`}
-              style={{ 
+              style={{
                 backgroundColor: preset.value,
-                borderColor: brushSettings.color.toUpperCase() === preset.value.toUpperCase() ? '#f08080' : undefined
+                borderColor: brushSettings.color.toUpperCase() === preset.value.toUpperCase() ? 'var(--coral)' : undefined
               }}
               title={preset.name}
             />
@@ -74,8 +74,8 @@ export default function PropertiesSidebar() {
         </div>
 
         {/* Custom Color Picker */}
-        <div className="flex items-center gap-1.5 bg-gray-50 rounded-lg p-1.5 border-2 transition-colors" style={{
-          borderColor: '#fbc4ab'
+        <div className="flex items-center gap-1.5 rounded-lg p-1.5 border-2 transition-colors bg-[color:color-mix(in_srgb,var(--ink)_5%,transparent)]" style={{
+          borderColor: 'color-mix(in srgb, var(--coral) 35%, transparent)'
         }}>
           <input
             type="color"
@@ -84,10 +84,10 @@ export default function PropertiesSidebar() {
             className="w-8 h-8 rounded-md cursor-pointer border-2 border-white shadow-sm"
           />
           <div className="flex-1">
-            <div className="text-[9px] text-gray-500 font-semibold uppercase tracking-wide mb-0.5">
+            <div className="text-[9px] text-[color:var(--ink-soft)] font-semibold uppercase tracking-wide mb-0.5">
               Custom
             </div>
-            <div className="text-[10px] text-gray-700 font-mono font-bold">
+            <div className="text-[10px] text-[color:var(--ink)] font-mono font-bold">
               {brushSettings.color.toUpperCase()}
             </div>
           </div>
@@ -96,8 +96,8 @@ export default function PropertiesSidebar() {
 
       {/* Stroke Width Section */}
       <div className="mb-3">
-        <label className="flex items-center gap-1 text-[10px] font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
-          <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#f08080' }}></span>
+        <label className="flex items-center gap-1 text-[10px] font-bold text-[color:var(--ink-soft)] mb-1.5 uppercase tracking-wide">
+          <span className="w-1 h-1 rounded-full" style={{ backgroundColor: 'var(--coral)' }}></span>
           Width
         </label>
         <div className="grid grid-cols-2 gap-1.5">
@@ -108,16 +108,16 @@ export default function PropertiesSidebar() {
               className={`sketch-button flex flex-col items-center justify-center px-2 py-1.5 transition-all duration-150 border-2 ${
                 brushSettings.width === option.value
                   ? "shadow-sm sketch-active"
-                  : "bg-gray-50 border-gray-200"
+                  : "bg-[color:color-mix(in_srgb,var(--ink)_5%,transparent)] border-[color:color-mix(in_srgb,var(--ink)_15%,transparent)]"
               }`}
-              style={brushSettings.width === option.value ? { 
-                backgroundColor: '#ffdab9',
-                borderColor: '#f08080',
+              style={brushSettings.width === option.value ? {
+                backgroundColor: 'var(--coral)',
+                borderColor: 'var(--coral-deep)',
                 color: '#ffffff'
               } : {}}
             >
               <span className={`text-[10px] font-bold mb-1 ${
-                brushSettings.width === option.value ? 'text-white' : 'text-gray-700'
+                brushSettings.width === option.value ? 'text-white' : 'text-[color:var(--ink-soft)]'
               }`}>
                 {option.label}
               </span>
@@ -126,7 +126,7 @@ export default function PropertiesSidebar() {
                 style={{
                   width: `${option.size}px`,
                   height: `${option.size}px`,
-                  backgroundColor: brushSettings.width === option.value ? '#ffffff' : '#1f2937'
+                  backgroundColor: brushSettings.width === option.value ? '#ffffff' : 'var(--ink)'
                 }}
               ></div>
             </button>
@@ -135,10 +135,10 @@ export default function PropertiesSidebar() {
       </div>
 
       {/* Line Style Section */}
-      <div className="pt-2 border-t-2 border-dashed border-gray-200">
+      <div className="pt-2 border-t-2 border-dashed border-[color:color-mix(in_srgb,var(--ink)_15%,transparent)]">
         {/* Line Dash Pattern */}
-        <label className="flex items-center gap-1 text-[10px] font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
-          <Minus size={10} className="text-gray-700" />
+        <label className="flex items-center gap-1 text-[10px] font-bold text-[color:var(--ink-soft)] mb-1.5 uppercase tracking-wide">
+          <Minus size={10} className="text-[color:var(--ink-soft)]" />
           Line Style
         </label>
         <div className="grid grid-cols-3 gap-1.5">
@@ -150,12 +150,12 @@ export default function PropertiesSidebar() {
             <button
               key={style.value}
               onClick={() => updateLineDash(style.value)}
-              className={`px-2 py-2 text-xs font-medium rounded-md transition-all duration-150 border-2 ${
+              className={`sketch-button px-2 py-2 text-xs font-medium transition-all duration-150 border-2 ${
                 brushSettings.lineDash === style.value
                   ? "shadow-md scale-105 text-white"
-                  : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
+                  : "bg-[color:color-mix(in_srgb,var(--ink)_5%,transparent)] text-[color:var(--ink-soft)] hover:bg-[color:color-mix(in_srgb,var(--ink)_10%,transparent)] border-[color:color-mix(in_srgb,var(--ink)_15%,transparent)]"
               }`}
-              style={brushSettings.lineDash === style.value ? { backgroundColor: '#f08080', borderColor: '#f08080' } : {}}
+              style={brushSettings.lineDash === style.value ? { backgroundColor: 'var(--coral)', borderColor: 'var(--coral-deep)' } : {}}
               title={style.label}
             >
               <div className="text-base leading-none mb-0.5 overflow-hidden">{style.preview}</div>

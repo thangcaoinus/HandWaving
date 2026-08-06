@@ -15,7 +15,7 @@ export default function BrushToolbar() {
   ];
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-white sketch-panel border-2 border-black/5 px-3 py-3 flex items-center justify-center gap-2 z-10 max-w-fit">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 paper-card sketch-panel border-2 border-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] px-3 py-3 flex items-center justify-center gap-2 z-10 max-w-fit">
       {brushTypes.map((brush) => {
         const Icon = brush.Icon;
         return (
@@ -23,10 +23,10 @@ export default function BrushToolbar() {
             key={brush.id}
             className={`sketch-button flex w-10 h-10 items-center justify-center transition-all duration-150 border-2 ${
               brushType === brush.id
-                ? "text-white shadow-md border-[#f08080] scale-105" 
-                : "bg-gray-50 text-gray-700 hover:text-[#f08080] border-transparent hover:border-[#fbc4ab] hover:shadow-sm active:translate-y-0"
+                ? "text-white shadow-md border-[color:var(--coral)] scale-105"
+                : "bg-[color:color-mix(in_srgb,var(--ink)_5%,transparent)] text-[color:var(--ink-soft)] hover:text-[color:var(--coral)] border-transparent hover:border-[color:color-mix(in_srgb,var(--coral)_40%,transparent)] hover:shadow-sm active:translate-y-0"
             }`}
-            style={brushType === brush.id ? { backgroundColor: '#f08080' } : {}}
+            style={brushType === brush.id ? { backgroundColor: 'var(--coral)' } : {}}
             onClick={() => updateBrushType(brush.id)}
             title={brush.label}
           >

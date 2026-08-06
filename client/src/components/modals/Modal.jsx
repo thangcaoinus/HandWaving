@@ -8,24 +8,24 @@ export default function Modal({ isOpen, onClose, title, icon, children, actions 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >
-      <div 
-        className="sketch-panel bg-white p-6 max-w-md w-full mx-4 relative"
+      <div
+        className="sketch-panel paper-card p-6 max-w-md w-full mx-4 relative font-body text-[color:var(--ink)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded transition-colors"
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded transition-colors text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] hover:bg-[color:color-mix(in_srgb,var(--ink)_8%,transparent)]"
           title="Close"
         >
-          <X size={20} className="text-gray-500" />
+          <X size={20} />
         </button>
 
         {/* Title with optional icon */}
         {title && (
           <div className="flex items-center gap-3 mb-4 pr-8">
-            {icon && <div className="text-[#f08080]">{icon}</div>}
-            <h2 className="text-2xl font-bold -rotate-1" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
+            {icon && <div className="text-[color:var(--coral)]">{icon}</div>}
+            <h2 className="font-display text-2xl -rotate-1 text-[color:var(--ink)]">
               {title}
             </h2>
           </div>
@@ -49,9 +49,7 @@ export default function Modal({ isOpen, onClose, title, icon, children, actions 
 
 // Confirm dialog variant
 export function ConfirmModal({ isOpen, onClose, onConfirm, onCancel, title, icon, message, confirmText = "OK", cancelText = "Cancel", confirmStyle = "primary" }) {
-  const confirmClasses = confirmStyle === "danger"
-    ? "bg-red-500 hover:bg-red-600 text-white"
-    : "bg-[#f08080] hover:bg-[#e07070] text-white";
+  const confirmClasses = confirmStyle === "danger" ? "btn-danger" : "btn-coral";
 
   const handleCancel = () => {
     if (onCancel) {
@@ -70,7 +68,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, onCancel, title, icon
         <>
           <button
             onClick={handleCancel}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded font-medium transition-colors"
+            className="btn-ghost focus-sketch !text-base !py-2"
           >
             {cancelText}
           </button>
@@ -79,14 +77,14 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, onCancel, title, icon
               onConfirm();
               onClose();
             }}
-            className={`px-4 py-2 rounded font-medium transition-colors ${confirmClasses}`}
+            className={`${confirmClasses} focus-sketch !text-base !py-2`}
           >
             {confirmText}
           </button>
         </>
       }
     >
-      <p className="text-gray-700 whitespace-pre-line">{message}</p>
+      <p className="text-[color:var(--ink)] whitespace-pre-line">{message}</p>
     </Modal>
   );
 }
@@ -102,13 +100,13 @@ export function AlertModal({ isOpen, onClose, title, icon, message, buttonText =
       actions={
         <button
           onClick={onClose}
-          className="px-4 py-2 bg-[#f08080] hover:bg-[#e07070] text-white rounded font-medium transition-colors"
+          className="btn-coral focus-sketch !text-base !py-2"
         >
           {buttonText}
         </button>
       }
     >
-      <p className="text-gray-700 whitespace-pre-line">{message}</p>
+      <p className="text-[color:var(--ink)] whitespace-pre-line">{message}</p>
     </Modal>
   );
 }

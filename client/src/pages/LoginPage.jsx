@@ -147,31 +147,41 @@ export default function LoginPage() {
         cancelText="No, Discard"
       />
 
-      <div className="min-h-screen bg-gradient-to-br from-[#f08080] to-[#ffdab9] flex items-center justify-center p-4">
+      <div className="paper-surface min-h-screen relative overflow-hidden flex items-center justify-center p-4 font-body text-[color:var(--ink)]">
+        {/* Faint roaming doodles — continuity with the landing page */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g stroke="var(--ink)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.1">
+            <circle className="doodle-float" style={{ '--r': '-4deg' }} cx="180" cy="160" r="26" />
+            <path className="doodle-float" style={{ '--r': '4deg' }} d="M1210 720 l54 -6 l4 58 l-60 8 l-2 -62 z" />
+          </g>
+          <g stroke="var(--coral)" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.2">
+            <path className="doodle-float" style={{ '--r': '2deg' }} d="M1180 200 l64 36 l-110 14 z" />
+          </g>
+        </svg>
+
         {/* Back to Landing Page Button */}
         <button
           onClick={() => navigate('/')}
-          className="fixed top-4 left-4 sketch-button bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 flex items-center gap-2 text-sm font-medium transition-all hover:scale-105 active:scale-95"
-          style={{ fontFamily: 'Comic Sans MS, cursive' }}
+          className="fixed top-4 left-4 z-20 btn-ghost focus-sketch text-sm !py-2 !px-4"
         >
           <ArrowLeft size={16} />
           Back to Home
         </button>
 
-        <div className="sketch-panel bg-white p-8 w-full max-w-md">
+        <div className="sketch-panel paper-card p-8 w-full max-w-md relative z-10">
         {/* Header */}
         <div className="text-center mb-6">
-          <h1 className="text-4xl font-bold -rotate-2 text-[#f08080]" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
+          <h1 className="font-display text-5xl -rotate-2 text-[color:var(--coral)] leading-none">
             HandWaving
           </h1>
-          <p className="mt-2 text-gray-600">
-            {isLogin ? 'Welcome back!' : 'Create your account'}
+          <p className="mt-3 font-display text-xl text-[color:var(--ink)]">
+            {isLogin ? 'Welcome back.' : 'Make an account.'}
           </p>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border-2 border-red-400 rounded text-red-700 text-sm">
+          <div className="status-err mb-4">
             {error}
           </div>
         )}
@@ -180,7 +190,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium mb-1" htmlFor="email">
+            <label className="block text-sm font-bold mb-1 text-[color:var(--ink)]" htmlFor="email">
               Email
             </label>
             <input
@@ -188,7 +198,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-[#f08080]"
+              className="sketch-input"
               required
               autoComplete="email"
             />
@@ -197,7 +207,7 @@ export default function LoginPage() {
           {/* Username (register only) */}
           {!isLogin && (
             <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="username">
+              <label className="block text-sm font-bold mb-1 text-[color:var(--ink)]" htmlFor="username">
                 Username
               </label>
               <input
@@ -205,7 +215,7 @@ export default function LoginPage() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-[#f08080]"
+                className="sketch-input"
                 required
                 minLength={3}
                 maxLength={20}
@@ -213,7 +223,7 @@ export default function LoginPage() {
                 title="Username can only contain letters, numbers, and underscores"
                 autoComplete="username"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-[color:var(--ink-soft)] mt-1">
                 3-20 characters, letters, numbers, and underscores only
               </p>
             </div>
@@ -222,7 +232,7 @@ export default function LoginPage() {
           {/* Display Name (register only) */}
           {!isLogin && (
             <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="displayName">
+              <label className="block text-sm font-bold mb-1 text-[color:var(--ink)]" htmlFor="displayName">
                 Display Name (optional)
               </label>
               <input
@@ -230,7 +240,7 @@ export default function LoginPage() {
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-[#f08080]"
+                className="sketch-input"
                 maxLength={50}
                 autoComplete="name"
               />
@@ -239,7 +249,7 @@ export default function LoginPage() {
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-medium mb-1" htmlFor="password">
+            <label className="block text-sm font-bold mb-1 text-[color:var(--ink)]" htmlFor="password">
               Password
             </label>
             <input
@@ -247,14 +257,14 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-[#f08080]"
+              className="sketch-input"
               required
               minLength={8}
               autoComplete={isLogin ? 'current-password' : 'new-password'}
             />
             {!isLogin && (
-              <p className="text-xs text-gray-500 mt-1">
-                Minimum 8 characters, must include uppercase, lowercase, and number
+              <p className="text-xs text-[color:var(--ink-soft)] mt-1 leading-snug">
+                Minimum 8 characters. Include uppercase, lowercase, and a number.
               </p>
             )}
           </div>
@@ -263,9 +273,9 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="sketch-button w-full bg-[#f08080] hover:bg-[#e07070] text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-coral focus-sketch w-full text-lg !py-3"
           >
-            {loading ? 'Please wait...' : isLogin ? 'Login' : 'Register'}
+            {loading ? 'Please wait...' : isLogin ? 'Login' : 'Create Account'}
           </button>
         </form>
 
@@ -276,7 +286,7 @@ export default function LoginPage() {
               setIsLogin(!isLogin);
               setError('');
             }}
-            className="text-[#f08080] hover:underline text-sm"
+            className="text-[color:var(--coral-deep)] hover:underline text-sm font-body"
           >
             {isLogin
               ? "Don't have an account? Register"

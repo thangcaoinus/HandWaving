@@ -6,8 +6,8 @@ export default function ProtectedRoute({ children, requireNonGuest = false }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f08080] to-[#ffdab9]">
-        <div className="text-2xl font-bold" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
+      <div className="paper-surface min-h-screen flex items-center justify-center text-[color:var(--ink)]">
+        <div className="font-display text-2xl">
           Loading...
         </div>
       </div>

@@ -1,7 +1,11 @@
 // Rate limiting middleware - protects sensitive endpoints from abuse.
 // Limits: 5 login/15min, 10 avatar upload/hour, 3 password change/hour, 20 canvas create/hour.
 
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+
+// Normalize an IP for keying: ipKeyGenerator collapses IPv6 addresses to their
+// subnet so a single IPv6 allocation can't slip the limit by rotating addresses.
+const ipKey = (req) => ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown');
 
 // Strict rate limiter for authentication endpoints
 // Prevents brute force attacks on login/register
@@ -10,8 +14,7 @@ export const authLimiter = rateLimit({
   max: process.env.NODE_ENV === 'development' ? 100 : 5,
   keyGenerator: (req) => {
     const email = req.body?.email || 'anonymous';
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    return `${email}:${ip}`;
+    return `${email}:${ipKey(req)}`;
   },
   message: {
     error: 'Too many authentication attempts. Please try again in 15 minutes.',
@@ -34,7 +37,7 @@ export const authLimiter = rateLimit({
 export const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 10,
-  keyGenerator: (req) => req.user?.id || req.ip || 'anonymous',
+  keyGenerator: (req) => req.user?.id || ipKey(req),
   message: {
     error: 'Too many upload attempts. Please try again later.',
     retryAfter: 60 * 60,
@@ -77,7 +80,7 @@ export const apiLimiter = rateLimit({
 export const passwordChangeLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 3,
-  keyGenerator: (req) => req.user?.id || req.ip || 'anonymous',
+  keyGenerator: (req) => req.user?.id || ipKey(req),
   message: {
     error: 'Too many password change attempts.',
     retryAfter: 60 * 60,
@@ -98,7 +101,7 @@ export const passwordChangeLimiter = rateLimit({
 export const canvasCreationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 20,
-  keyGenerator: (req) => req.user?.id || req.ip || 'anonymous',
+  keyGenerator: (req) => req.user?.id || ipKey(req),
   message: {
     error: 'Too many canvases created.',
     retryAfter: 60 * 60,

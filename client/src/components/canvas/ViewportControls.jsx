@@ -13,16 +13,16 @@ export default function ViewportControls() {
     <div className="fixed bottom-4 right-4 flex gap-3 z-10">
       {/* Undo/Redo Panel - only show if can edit */}
       {canEdit && (
-        <div className="bg-white sketch-panel border-2 border-black/5 px-2.5 py-2.5 flex gap-2 items-center">
+        <div className="paper-card sketch-panel border-2 border-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] px-2.5 py-2.5 flex gap-2 items-center">
           <button
-            className="w-8 h-8 bg-gray-50 text-gray-700 sketch-button transition-all duration-150 flex items-center justify-center border-2 border-transparent active:translate-y-0"
+            className="w-8 h-8 bg-[color:color-mix(in_srgb,var(--ink)_5%,transparent)] text-[color:var(--ink-soft)] hover:text-[color:var(--coral)] sketch-button transition-all duration-150 flex items-center justify-center border-2 border-transparent active:translate-y-0"
             onClick={handleUndo}
             title="Undo (Ctrl+Z)"
           >
             <Undo2 size={16} strokeWidth={2.5} />
           </button>
           <button
-            className="w-8 h-8 bg-gray-50 text-gray-700 sketch-button transition-all duration-150 flex items-center justify-center border-2 border-transparent active:translate-y-0"
+            className="w-8 h-8 bg-[color:color-mix(in_srgb,var(--ink)_5%,transparent)] text-[color:var(--ink-soft)] hover:text-[color:var(--coral)] sketch-button transition-all duration-150 flex items-center justify-center border-2 border-transparent active:translate-y-0"
             onClick={handleRedo}
             title="Redo (Ctrl+Y)"
           >
@@ -32,21 +32,21 @@ export default function ViewportControls() {
       )}
 
       {/* Zoom Controls Panel */}
-      <div className="bg-white sketch-panel border-2 border-black/5 px-2.5 py-2.5 flex gap-2 items-center">
+      <div className="paper-card sketch-panel border-2 border-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] px-2.5 py-2.5 flex gap-2 items-center">
         <button
           className="w-8 h-8 text-white sketch-button transition-all duration-150 flex items-center justify-center active:translate-y-0"
-          style={{ backgroundColor: '#f08080' }}
+          style={{ backgroundColor: 'var(--coral)' }}
           onClick={() => viewport.zoomOut()}
           title="Zoom Out"
         >
           <ZoomOut size={16} strokeWidth={2.5} />
         </button>
-        <span className="text-sm text-gray-700 font-bold min-w-[3rem] text-center px-1">
+        <span className="text-sm text-[color:var(--ink)] font-bold min-w-[3rem] text-center px-1">
           {viewport.zoom ? `${Math.round(viewport.zoom * 100)}%` : "100%"}
         </span>
         <button
           className="w-8 h-8 text-white sketch-button transition-all duration-150 flex items-center justify-center active:translate-y-0"
-          style={{ backgroundColor: '#f08080' }}
+          style={{ backgroundColor: 'var(--coral)' }}
           onClick={() => viewport.zoomIn()}
           title="Zoom In"
         >
@@ -54,7 +54,7 @@ export default function ViewportControls() {
         </button>
         <button
           className="w-8 h-8 text-white sketch-button transition-all duration-150 flex items-center justify-center active:translate-y-0"
-          style={{ backgroundColor: '#f08080' }}
+          style={{ backgroundColor: 'var(--coral)' }}
           onClick={() => viewport.resetViewport()}
           title="Reset Viewport"
         >

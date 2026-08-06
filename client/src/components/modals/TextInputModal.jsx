@@ -38,24 +38,24 @@ export default function TextInputModal({ isOpen, onClose, onSubmit, initialText 
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Enter your text here..."
-          className="w-full min-h-[120px] p-3 border-2 border-gray-300 rounded-lg resize-none"
+          className="sketch-input w-full min-h-[120px] resize-none"
           style={{ fontFamily: 'Comic Sans MS, cursive' }}
         />
-        <div className="text-sm text-gray-600" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
-          Press <kbd className="px-2 py-1 bg-gray-200 rounded border border-gray-400">Ctrl+Enter</kbd> to submit
+        <div className="text-sm text-[color:var(--ink-soft)]">
+          Press <kbd className="px-2 py-1 rounded text-[color:var(--ink)] bg-[color:color-mix(in_srgb,var(--ink)_8%,transparent)] border border-[color:color-mix(in_srgb,var(--ink)_18%,transparent)]">Ctrl+Enter</kbd> to submit
         </div>
         <div className="flex gap-3 justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="sketch-button px-4 py-2 bg-gray-200 hover:bg-gray-300 border-2 border-gray-400"
+            className="btn-ghost focus-sketch !text-base !py-2"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={!text.trim()}
-            className="sketch-button px-4 py-2 bg-[#f08080] hover:bg-[#e07070] text-white border-2 border-[#d06060] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-coral focus-sketch !text-base !py-2"
           >
             {initialText ? 'Update' : 'Add Text'}
           </button>

@@ -147,22 +147,22 @@ export default function MenuButton() {
     <div className="fixed top-4 left-4 z-20" ref={menuRef}>
       {/* Menu Button */}
       <button
-        className="w-10 h-10 bg-white hover:bg-gray-50 sketch-panel border-2 border-black/5 flex items-center justify-center transition-all duration-150 sketch-button active:scale-95"
+        className="w-10 h-10 paper-card hover:brightness-[0.97] sketch-panel border-2 border-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] flex items-center justify-center transition-all duration-150 sketch-button active:scale-95"
         title="Menu (Export, Settings, etc.)"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <Menu size={18} strokeWidth={2.5} className="text-gray-700" />
+        <Menu size={18} strokeWidth={2.5} className="text-[color:var(--ink)]" />
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute top-12 left-0 bg-white sketch-panel border-2 border-black/5 py-2 min-w-[220px] overflow-hidden">
+        <div className="absolute top-12 left-0 paper-card sketch-panel border-2 border-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] py-2 min-w-[220px] overflow-hidden">
           {/* Brand Header */}
-          <div className="px-4 py-3 mb-2 border-b border-gray-200">
-            <div className="text-2xl font-bold" style={{ fontFamily: 'Comic Sans MS, cursive', color: '#f8ad9d' }}>
+          <div className="px-4 py-3 mb-2 border-b border-[color:color-mix(in_srgb,var(--ink)_10%,transparent)]">
+            <div className="font-display text-2xl text-[color:var(--coral)]">
               <span className="inline-block -rotate-1">HandWaving</span>
             </div>
-            <div className="text-[10px] text-gray-500 mt-1">Collaborative Whiteboard</div>
+            <div className="text-[10px] text-[color:var(--ink-soft)] mt-1">Collaborative Whiteboard</div>
           </div>
 
           {/* Gallery Link (only show if authenticated and not a guest) */}
@@ -172,19 +172,19 @@ export default function MenuButton() {
                 navigate('/gallery');
                 setIsOpen(false);
               }}
-              className="w-full px-4 py-2.5 text-left hover:bg-indigo-50 flex items-center gap-3 transition-colors group"
+              className="w-full px-4 py-2.5 text-left hover:bg-[color:color-mix(in_srgb,var(--coral)_10%,transparent)] flex items-center gap-3 transition-colors group"
             >
-              <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-                <LayoutGrid size={16} strokeWidth={2.5} className="text-gray-500 group-hover:text-indigo-600" />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors bg-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] group-hover:bg-[color:color-mix(in_srgb,var(--coral)_18%,transparent)]">
+                <LayoutGrid size={16} strokeWidth={2.5} className="text-[color:var(--ink-soft)] group-hover:text-[color:var(--coral-deep)]" />
               </div>
               <div>
-                <div className="font-semibold text-sm text-gray-800">My Canvases</div>
-                <div className="text-[10px] text-gray-500">View all saved canvases</div>
+                <div className="font-bold text-sm text-[color:var(--ink)]">My Canvases</div>
+                <div className="text-[10px] text-[color:var(--ink-soft)]">View all saved canvases</div>
               </div>
             </button>
           )}
 
-          {user && !user.isGuest && <div className="h-px bg-gray-200 my-2" />}
+          {user && !user.isGuest && <div className="h-px bg-[color:color-mix(in_srgb,var(--ink)_10%,transparent)] my-2" />}
 
           {/* Grid Toggle */}
           <button
@@ -194,91 +194,91 @@ export default function MenuButton() {
             }}
             className="w-full px-4 py-2.5 text-left flex items-center gap-3 transition-colors group"
             style={{
-              backgroundColor: showGrid ? '#ffdab9' : 'transparent'
+              backgroundColor: showGrid ? 'color-mix(in srgb, var(--coral) 14%, transparent)' : 'transparent'
             }}
             onMouseEnter={(e) => {
-              if (!showGrid) e.currentTarget.style.backgroundColor = '#ffdab9';
+              if (!showGrid) e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--coral) 10%, transparent)';
             }}
             onMouseLeave={(e) => {
               if (!showGrid) e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-              showGrid ? "text-white" : "bg-gray-100 text-gray-500"
-            }`} style={showGrid ? { backgroundColor: '#f08080' } : {}}>
+              showGrid ? "text-white" : "text-[color:var(--ink-soft)]"
+            }`} style={showGrid ? { backgroundColor: 'var(--coral)' } : { backgroundColor: 'color-mix(in srgb, var(--ink) 7%, transparent)' }}>
               <Grid3x3 size={16} strokeWidth={2.5} />
             </div>
             <div>
-              <div className="font-semibold text-sm text-gray-800">
+              <div className="font-bold text-sm text-[color:var(--ink)]">
                 {showGrid ? "Hide Grid" : "Show Grid"}
               </div>
-              <div className="text-[10px] text-gray-500">
+              <div className="text-[10px] text-[color:var(--ink-soft)]">
                 Toggle canvas grid
               </div>
             </div>
           </button>
 
-          <div className="h-px bg-gray-200 my-2" />
+          <div className="h-px bg-[color:color-mix(in_srgb,var(--ink)_10%,transparent)] my-2" />
 
           {/* Import Button - Only show if user can edit */}
           {canEdit && (
             <button
               onClick={handleImport}
-              className="w-full px-4 py-2.5 text-left hover:bg-indigo-50 flex items-center gap-3 transition-colors group"
+              className="w-full px-4 py-2.5 text-left hover:bg-[color:color-mix(in_srgb,var(--coral)_10%,transparent)] flex items-center gap-3 transition-colors group"
             >
-              <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-                <Upload size={16} strokeWidth={2.5} className="text-gray-500 group-hover:text-indigo-600" />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors bg-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] group-hover:bg-[color:color-mix(in_srgb,var(--coral)_18%,transparent)]">
+                <Upload size={16} strokeWidth={2.5} className="text-[color:var(--ink-soft)] group-hover:text-[color:var(--coral-deep)]" />
               </div>
               <div>
-                <div className="font-semibold text-sm text-gray-800">Import JSON</div>
-                <div className="text-[10px] text-gray-500">Load saved canvas</div>
+                <div className="font-bold text-sm text-[color:var(--ink)]">Import JSON</div>
+                <div className="text-[10px] text-[color:var(--ink-soft)]">Load saved canvas</div>
               </div>
             </button>
           )}
 
-          <div className="h-px bg-gray-200 my-2" />
+          <div className="h-px bg-[color:color-mix(in_srgb,var(--ink)_10%,transparent)] my-2" />
 
           {/* Export Section Header */}
-          <div className="px-4 py-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+          <div className="px-4 py-1.5 text-[10px] font-bold text-[color:var(--ink-soft)] uppercase tracking-wider">
             Export
           </div>
 
           <button
             onClick={() => handleExport("png")}
-            className="w-full px-4 py-2.5 text-left hover:bg-indigo-50 flex items-center gap-3 transition-colors group"
+            className="w-full px-4 py-2.5 text-left hover:bg-[color:color-mix(in_srgb,var(--coral)_10%,transparent)] flex items-center gap-3 transition-colors group"
           >
-            <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-              <Image size={16} strokeWidth={2.5} className="text-gray-500 group-hover:text-indigo-600" />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors bg-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] group-hover:bg-[color:color-mix(in_srgb,var(--coral)_18%,transparent)]">
+              <Image size={16} strokeWidth={2.5} className="text-[color:var(--ink-soft)] group-hover:text-[color:var(--coral-deep)]" />
             </div>
             <div>
-              <div className="font-semibold text-sm text-gray-800">PNG Image</div>
-              <div className="text-[10px] text-gray-500">Raster format</div>
+              <div className="font-bold text-sm text-[color:var(--ink)]">PNG Image</div>
+              <div className="text-[10px] text-[color:var(--ink-soft)]">Raster format</div>
             </div>
           </button>
 
           <button
             onClick={() => handleExport("pdf")}
-            className="w-full px-4 py-2.5 text-left hover:bg-indigo-50 flex items-center gap-3 transition-colors group"
+            className="w-full px-4 py-2.5 text-left hover:bg-[color:color-mix(in_srgb,var(--coral)_10%,transparent)] flex items-center gap-3 transition-colors group"
           >
-            <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-              <FileText size={16} strokeWidth={2.5} className="text-gray-500 group-hover:text-indigo-600" />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors bg-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] group-hover:bg-[color:color-mix(in_srgb,var(--coral)_18%,transparent)]">
+              <FileText size={16} strokeWidth={2.5} className="text-[color:var(--ink-soft)] group-hover:text-[color:var(--coral-deep)]" />
             </div>
             <div>
-              <div className="font-semibold text-sm text-gray-800">PDF Document</div>
-              <div className="text-[10px] text-gray-500">For printing</div>
+              <div className="font-bold text-sm text-[color:var(--ink)]">PDF Document</div>
+              <div className="text-[10px] text-[color:var(--ink-soft)]">For printing</div>
             </div>
           </button>
 
           <button
             onClick={() => handleExport("json")}
-            className="w-full px-4 py-2.5 text-left hover:bg-indigo-50 flex items-center gap-3 transition-colors group"
+            className="w-full px-4 py-2.5 text-left hover:bg-[color:color-mix(in_srgb,var(--coral)_10%,transparent)] flex items-center gap-3 transition-colors group"
           >
-            <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-              <Save size={16} strokeWidth={2.5} className="text-gray-500 group-hover:text-indigo-600" />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors bg-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] group-hover:bg-[color:color-mix(in_srgb,var(--coral)_18%,transparent)]">
+              <Save size={16} strokeWidth={2.5} className="text-[color:var(--ink-soft)] group-hover:text-[color:var(--coral-deep)]" />
             </div>
             <div>
-              <div className="font-semibold text-sm text-gray-800">JSON Data</div>
-              <div className="text-[10px] text-gray-500">Editable format</div>
+              <div className="font-bold text-sm text-[color:var(--ink)]">JSON Data</div>
+              <div className="text-[10px] text-[color:var(--ink-soft)]">Editable format</div>
             </div>
           </button>
         </div>

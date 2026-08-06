@@ -242,7 +242,7 @@ export default function UserPresence() {
                 style={{
                   marginLeft: index > 0 ? "-6px" : "0",
                   zIndex: roomUsers.length - index,
-                  background: user.avatarUrl ? 'transparent' : 'linear-gradient(135deg, #f8ad9d, #fbc4ab)',
+                  background: user.avatarUrl ? 'transparent' : 'linear-gradient(135deg, var(--coral), var(--coral-deep))',
                 }}
               >
                 {user.avatarUrl ? (
@@ -258,7 +258,7 @@ export default function UserPresence() {
             ))}
             {hasMoreUsers && (
               <div
-                className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-md border-2 border-white"
+                className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-md border-2 border-white bg-[color:var(--ink-soft)]"
                 title={`+${users.length - 3} more users`}
                 style={{ marginLeft: "-6px", zIndex: 0 }}
               >
@@ -270,10 +270,10 @@ export default function UserPresence() {
 
         {/* Share Button */}
         <button
-          className="w-10 h-10 text-white rounded-lg shadow-lg font-medium transition-colors flex items-center justify-center"
-          style={{ backgroundColor: '#f08080' }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f4978e'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f08080'}
+          className="w-10 h-10 text-white sketch-button shadow-lg font-medium transition-colors flex items-center justify-center"
+          style={{ backgroundColor: 'var(--coral)' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--coral-deep)'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--coral)'}
           onClick={() => setIsPanelOpen(!isPanelOpen)}
           title="Share & Collaborate"
         >
@@ -283,9 +283,9 @@ export default function UserPresence() {
 
       {isPanelOpen && (
         <div className="fixed top-16 right-4 w-80 z-50">
-          <div className="bg-white rounded-lg shadow-2xl border border-gray-200 overflow-hidden">
-            <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'linear-gradient(90deg, #f08080, #f8ad9d)' }}>
-              <h3 className="font-bold text-white flex items-center gap-2">
+          <div className="paper-card sketch-panel border-2 border-[color:color-mix(in_srgb,var(--ink)_8%,transparent)] overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'linear-gradient(90deg, var(--coral), var(--coral-deep))' }}>
+              <h3 className="font-display text-lg text-white flex items-center gap-2">
                 <Users className="w-5 h-5" />
                 <span>Collaborators</span>
               </h3>
@@ -302,8 +302,8 @@ export default function UserPresence() {
                 <>
                   {/* Link Sharing Section - Only for authenticated owner */}
                   {isOwner && !isAnonymous && (
-                    <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <h4 className="font-bold text-sm mb-2 flex items-center gap-1.5">
+                    <div className="mb-4 p-3 rounded-lg bg-[color:color-mix(in_srgb,var(--ink)_5%,transparent)] border border-[color:color-mix(in_srgb,var(--ink)_10%,transparent)]">
+                      <h4 className="font-display text-base mb-2 flex items-center gap-1.5 text-[color:var(--ink)]">
                         <Link2 className="w-4 h-4" />
                         Link Sharing
                       </h4>
@@ -325,13 +325,13 @@ export default function UserPresence() {
                         <>
                           {/* Share Role Selector */}
                           <div className="mb-2">
-                            <label className="block text-xs text-gray-600 mb-1">
+                            <label className="block text-xs text-[color:var(--ink-soft)] mb-1">
                               People with link can:
                             </label>
                             <select
                               value={localShareRole}
                               onChange={(e) => handleUpdateShareRole(e.target.value)}
-                              className="w-full text-sm px-2 py-1 border border-gray-300 rounded"
+                              className="sketch-input !text-sm !py-1"
                             >
                               <option value="VIEWER">View only</option>
                               <option value="EDITOR">Edit</option>
@@ -342,7 +342,7 @@ export default function UserPresence() {
                           <button
                             onClick={handleCopyShareLink}
                             disabled={!shareToken}
-                            className="w-full mb-2 bg-[#ffdab9] hover:bg-[#fbc4ab] text-gray-800 px-3 py-2 rounded flex items-center justify-center gap-2 text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="btn-ghost focus-sketch w-full mb-2 !text-sm !py-2"
                           >
                             {linkCopied ? (
                               <>
@@ -360,7 +360,7 @@ export default function UserPresence() {
                           {/* Rotate Token Button */}
                           <button
                             onClick={handleRotateShareToken}
-                            className="w-full text-xs text-gray-600 hover:text-gray-800 underline"
+                            className="w-full text-xs text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] underline"
                           >
                             Rotate link (invalidate old link)
                           </button>
@@ -372,7 +372,7 @@ export default function UserPresence() {
                   {/* Anonymous user message */}
                   {isAnonymous && (
                     <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <p className="text-sm text-gray-700">
+                      <p className="text-sm text-[color:var(--ink)]">
                         <strong>Login required:</strong> You need to login or sign up to share this canvas with others.
                       </p>
                     </div>
@@ -381,7 +381,7 @@ export default function UserPresence() {
                   {canManageCollaborators && (
                     <button
                       onClick={() => setIsAddModalOpen(true)}
-                      className="w-full mb-4 sketch-button bg-[#f08080] hover:bg-[#e07070] text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 font-bold"
+                      className="btn-coral focus-sketch w-full mb-4"
                     >
                       <Plus size={16} />
                       Add Collaborator
@@ -390,17 +390,17 @@ export default function UserPresence() {
 
                   <div className="space-y-2">
                     {collaborators.length === 0 ? (
-                      <div className="text-sm text-gray-500 text-center py-4">
+                      <div className="text-sm text-[color:var(--ink-soft)] text-center py-4">
                         No collaborators yet
                       </div>
                     ) : (
                       collaborators.map((collab) => (
                         <div
                           key={collab.id}
-                          className="bg-gray-50 p-3 rounded-lg flex items-center gap-3"
+                          className="p-3 rounded-lg flex items-center gap-3 bg-[color:color-mix(in_srgb,var(--ink)_5%,transparent)]"
                         >
                           {/* Avatar */}
-                          <div className="w-10 h-10 rounded-full bg-[#f8ad9d] flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden">
+                          <div className="w-10 h-10 rounded-full bg-[color:var(--coral)] flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden">
                             {collab.user.avatarUrl ? (
                               <img
                                 src={collab.user.avatarUrl}
@@ -413,20 +413,20 @@ export default function UserPresence() {
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm truncate flex items-center gap-1">
+                            <div className="font-bold text-sm truncate flex items-center gap-1 text-[color:var(--ink)]">
                               {collab.user.displayName || collab.user.username}
                               {collab.user.isGuest && (
                                 <span className="text-[10px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded">Guest</span>
                               )}
                             </div>
-                            <div className="text-xs text-gray-500 truncate">
+                            <div className="text-xs text-[color:var(--ink-soft)] truncate">
                               {collab.user.email || '(No email)'}
                             </div>
                             {canManageCollaborators ? (
                               <select
                                 value={collab.role}
                                 onChange={(e) => handleUpdateRole(collab.id, e.target.value)}
-                                className="text-xs mt-1 border border-gray-300 rounded px-1 py-0.5"
+                                className="sketch-input !text-xs !w-auto mt-1 !px-1 !py-0.5"
                               >
                                 <option value="VIEWER">Viewer</option>
                                 <option value="EDITOR">Editor</option>
@@ -434,16 +434,16 @@ export default function UserPresence() {
                                 {!collab.user.isGuest && <option value="ADMIN">Admin</option>}
                               </select>
                             ) : (
-                              <div className="text-xs text-gray-400 mt-1">
+                              <div className="text-xs text-[color:var(--ink-soft)] mt-1">
                                 Role: {collab.role}
                               </div>
                             )}
                           </div>
-                          
+
                           {canManageCollaborators && (
                             <button
                               onClick={() => handleRemoveCollaborator(collab.id)}
-                              className="ml-2 p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                              className="ml-2 p-2 text-[#c0392b] hover:bg-[color:color-mix(in_srgb,#c0392b_10%,transparent)] rounded transition-colors"
                               title="Remove"
                             >
                               <Trash2 size={16} />
@@ -454,20 +454,20 @@ export default function UserPresence() {
                     )}
                   </div>
 
-                  <div className="mt-4 pt-4 border-t">
+                  <div className="mt-4 pt-4 border-t border-[color:color-mix(in_srgb,var(--ink)_10%,transparent)]">
                     <div className="flex items-center gap-2 mb-2">
                       <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}></div>
-                      <span className="text-sm text-gray-700">
+                      <span className="text-sm text-[color:var(--ink)]">
                         {isConnected ? "Connected" : "Disconnected"}
                       </span>
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-[color:var(--ink-soft)]">
                       {users.length} {users.length === 1 ? "user" : "users"} online
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="text-sm text-gray-500 text-center py-4">
+                <div className="text-sm text-[color:var(--ink-soft)] text-center py-4">
                   Save canvas to enable collaboration
                 </div>
               )}
@@ -477,16 +477,16 @@ export default function UserPresence() {
       )}
 
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-96 max-w-[90vw]">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
-              <h3 className="font-bold text-lg">Add Collaborator</h3>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="paper-card sketch-panel w-96 max-w-[90vw] font-body text-[color:var(--ink)]">
+            <div className="px-6 py-4 border-b border-[color:color-mix(in_srgb,var(--ink)_10%,transparent)] flex items-center justify-between">
+              <h3 className="font-display text-xl text-[color:var(--ink)]">Add Collaborator</h3>
               <button
                 onClick={() => {
                   setIsAddModalOpen(false);
                   setError(null);
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
               >
                 <X size={20} />
               </button>
@@ -494,33 +494,33 @@ export default function UserPresence() {
 
             <form onSubmit={handleAddCollaborator} className="p-6">
               {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                <div className="status-err mb-4">
                   {error}
                 </div>
               )}
 
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-bold text-[color:var(--ink)] mb-2">
                   Email Address
                 </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#f08080] focus:border-transparent outline-none"
+                  className="sketch-input"
                   placeholder="user@example.com"
                   required
                 />
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-bold text-[color:var(--ink)] mb-2">
                   Permission Level
                 </label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#f08080] focus:border-transparent outline-none"
+                  className="sketch-input"
                 >
                   <option value="VIEWER">Viewer (can view only)</option>
                   <option value="EDITOR">Editor (can edit)</option>
@@ -535,14 +535,14 @@ export default function UserPresence() {
                     setIsAddModalOpen(false);
                     setError(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="btn-ghost focus-sketch flex-1 !text-base !py-2"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 bg-[#f08080] hover:bg-[#e07070] text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="btn-coral focus-sketch flex-1 !text-base !py-2"
                 >
                   {isSubmitting ? 'Adding...' : 'Add'}
                 </button>

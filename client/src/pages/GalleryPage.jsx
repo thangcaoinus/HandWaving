@@ -296,8 +296,8 @@ export default function GalleryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#f08080] to-[#ffdab9] flex items-center justify-center">
-        <div className="text-2xl font-bold" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
+      <div className="paper-surface min-h-screen flex items-center justify-center text-[color:var(--ink)]">
+        <div className="font-display text-2xl">
           Loading canvases...
         </div>
       </div>
@@ -305,35 +305,35 @@ export default function GalleryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f08080] to-[#ffdab9] p-8">
+    <div className="paper-surface min-h-screen p-8 font-body text-[color:var(--ink)]">
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-5xl font-bold mb-2 flex items-center gap-3 text-white" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
-              <Palette className="w-12 h-12 drop-shadow-lg" strokeWidth={2.5} />
-              <span className="drop-shadow-lg">Canvas Gallery</span>
+            <h1 className="font-display text-5xl mb-1 flex items-center gap-3 text-[color:var(--ink)]">
+              <Palette className="w-11 h-11 text-[color:var(--coral)]" strokeWidth={2.5} />
+              <span>Your Canvases</span>
             </h1>
-            <p className="text-gray-800 text-lg ml-1">
-              Welcome back, {user?.displayName || user?.username}!
+            <p className="text-[color:var(--ink-soft)] text-lg ml-1">
+              Welcome back, {user?.displayName || user?.username}.
             </p>
           </div>
-          
+
           <div className="flex gap-3">
             <button
               onClick={() => {
                 setLoading(true);
                 fetchCanvases();
               }}
-              className="sketch-button bg-white hover:bg-gray-50 px-4 py-3 rounded-lg flex items-center gap-2 border-2 border-black/10"
+              className="btn-ghost focus-sketch !px-4 !py-3"
               title="Refresh gallery"
             >
               <RefreshCw size={20} />
             </button>
-            
+
             <button
               onClick={() => navigate('/canvas/new')}
-              className="sketch-button bg-white hover:bg-gray-50 px-6 py-3 rounded-lg flex items-center gap-2 font-bold border-2 border-black/10"
+              className="btn-coral focus-sketch !px-6 !py-3"
             >
               <Plus size={20} />
               New Canvas
@@ -344,25 +344,25 @@ export default function GalleryPage() {
 
       {/* Error Message */}
       {error && (
-        <div className="max-w-7xl mx-auto mb-4 p-4 bg-red-100 border-2 border-red-400 rounded text-red-700">
-          {error}
+        <div className="max-w-7xl mx-auto mb-4">
+          <div className="status-err">{error}</div>
         </div>
       )}
 
       {/* Search and Filters */}
       <div className="max-w-7xl mx-auto mb-6">
-        <div className="sketch-panel bg-white p-4">
+        <div className="sketch-panel paper-card p-4">
           <div className="flex flex-wrap gap-3">
             {/* Search */}
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--ink-soft)] z-10" />
                 <input
                   type="text"
                   placeholder="Search canvases..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-[#f08080]"
+                  className="sketch-input !pl-10"
                 />
               </div>
             </div>
@@ -371,7 +371,7 @@ export default function GalleryPage() {
             <select
               value={filterOwner}
               onChange={(e) => setFilterOwner(e.target.value)}
-              className="px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-[#f08080]"
+              className="sketch-input !w-auto"
             >
               <option value="all">All Canvases</option>
               <option value="mine">My Canvases</option>
@@ -382,7 +382,7 @@ export default function GalleryPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-[#f08080]"
+              className="sketch-input !w-auto"
             >
               <option value="updated">Last Updated</option>
               <option value="created">Recently Created</option>
@@ -394,7 +394,7 @@ export default function GalleryPage() {
             {hasActiveFilters && (
               <button
                 onClick={clearAllFilters}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded font-medium transition-colors flex items-center gap-2"
+                className="btn-ghost focus-sketch !text-sm !py-2"
               >
                 <X size={16} />
                 Clear Filters
@@ -405,12 +405,12 @@ export default function GalleryPage() {
           {/* Selected Tags */}
           {selectedTags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2 items-center">
-              <span className="text-sm text-gray-600">Filtered by:</span>
+              <span className="text-sm text-[color:var(--ink-soft)]">Filtered by:</span>
               {selectedTags.map(tag => (
                 <button
                   key={tag}
                   onClick={() => setSelectedTags(selectedTags.filter(t => t !== tag))}
-                  className="px-2 py-1 bg-[#f08080] text-white rounded-full text-xs flex items-center gap-1 hover:bg-[#e07070] transition-colors"
+                  className="tag-chip"
                 >
                   {tag}
                   <X size={12} />
@@ -422,14 +422,14 @@ export default function GalleryPage() {
           {/* Available Tags */}
           {allTags.length > 0 && selectedTags.length < allTags.length && (
             <div className="mt-3 flex flex-wrap gap-2 items-center">
-              <span className="text-sm text-gray-600">Tags:</span>
+              <span className="text-sm text-[color:var(--ink-soft)]">Tags:</span>
               {allTags
                 .filter(tag => !selectedTags.includes(tag))
                 .map(tag => (
                   <button
                     key={tag}
                     onClick={() => setSelectedTags([...selectedTags, tag])}
-                    className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded-full text-xs transition-colors"
+                    className="px-2.5 py-1 rounded-full text-xs font-body font-bold text-[color:var(--ink-soft)] bg-[color:color-mix(in_srgb,var(--ink)_8%,transparent)] hover:bg-[color:color-mix(in_srgb,var(--ink)_14%,transparent)] transition-colors"
                   >
                     {tag}
                   </button>
@@ -438,7 +438,7 @@ export default function GalleryPage() {
           )}
 
           {/* Results Count */}
-          <div className="mt-3 text-sm text-gray-600">
+          <div className="mt-3 text-sm text-[color:var(--ink-soft)]">
             Showing {filteredCanvases.length} of {canvases.length} canvas{canvases.length !== 1 ? 'es' : ''}
           </div>
         </div>
@@ -447,22 +447,23 @@ export default function GalleryPage() {
       {/* Canvas Grid */}
       <div className="max-w-7xl mx-auto">
         {filteredCanvases.length === 0 ? (
-          <div className="sketch-panel bg-white p-12 text-center">
+          <div className="sketch-panel paper-card p-12 text-center">
             <div className="mb-4 flex justify-center">
-              <Palette className="w-24 h-24 text-gray-400" strokeWidth={2} />
+              <Palette className="w-24 h-24 text-[color:color-mix(in_srgb,var(--ink)_25%,transparent)]" strokeWidth={2} />
             </div>
-            <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
-              {canvases.length === 0 ? 'No canvases yet' : 'No canvases match your filters'}
+            <h2 className="font-display text-3xl mb-2 text-[color:var(--ink)]">
+              {canvases.length === 0 ? 'No canvases yet' : 'Nothing matches those filters'}
             </h2>
-            <p className="text-gray-600 mb-6">
-              {canvases.length === 0 ? 'Create your first canvas to get started!' : 'Try adjusting your search or filters'}
+            <p className="text-[color:var(--ink-soft)] mb-6">
+              {canvases.length === 0 ? 'Draw your first canvas to get started.' : 'Try adjusting your search or filters.'}
             </p>
             {canvases.length === 0 && (
               <button
                 onClick={() => navigate('/canvas/new')}
-                className="sketch-button bg-[#f08080] hover:bg-[#e07070] text-white px-6 py-3 rounded-lg font-bold"
+                className="btn-coral focus-sketch !px-6 !py-3"
               >
-                Create Canvas
+                <Plus size={18} />
+                New Canvas
               </button>
             )}
           </div>
@@ -472,31 +473,31 @@ export default function GalleryPage() {
               <div
                 key={canvas.id}
                 onClick={() => navigate(`/canvas/${canvas.id}`)}
-                className="sketch-panel bg-white p-4 cursor-pointer hover:shadow-lg transition-all duration-200 group"
+                className="sketch-panel paper-card p-4 cursor-pointer hover:-translate-y-1 transition-transform duration-200 group"
               >
                 {/* Thumbnail Placeholder */}
-                <div className="w-full h-40 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                <div className="w-full h-40 rounded-lg mb-3 flex items-center justify-center overflow-hidden bg-[color:color-mix(in_srgb,var(--ink)_5%,var(--paper))] border border-[color:color-mix(in_srgb,var(--ink)_8%,transparent)]">
                   {canvas.thumbnailUrl ? (
                     <img src={canvas.thumbnailUrl} alt={canvas.title} className="w-full h-full object-cover" />
                   ) : (
-                    <Palette className="w-12 h-12 text-gray-300" strokeWidth={2} />
+                    <Palette className="w-12 h-12 text-[color:color-mix(in_srgb,var(--ink)_18%,transparent)]" strokeWidth={2} />
                   )}
                 </div>
 
                 {/* Canvas Info */}
                 <div className="mb-3">
-                  <h3 className="font-bold text-lg mb-1 truncate group-hover:text-[#f08080] transition-colors">
+                  <h3 className="font-display text-xl mb-1 truncate text-[color:var(--ink)] group-hover:text-[color:var(--coral)] transition-colors">
                     {canvas.title}
                   </h3>
                   {canvas.description && (
-                    <p className="text-sm text-gray-600 line-clamp-2">
+                    <p className="text-sm text-[color:var(--ink-soft)] line-clamp-2">
                       {canvas.description}
                     </p>
                   )}
                 </div>
 
                 {/* Metadata */}
-                <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                <div className="flex items-center gap-3 text-xs text-[color:var(--ink-soft)] mb-3">
                   <div className="flex items-center gap-1">
                     <Clock size={12} />
                     {formatDate(canvas.updatedAt)}
@@ -515,21 +516,21 @@ export default function GalleryPage() {
                     {canvas.tags?.map(({ tag }) => (
                       <div
                         key={tag.id}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#ffdab9] rounded-full text-xs group"
+                        className="tag-chip group/tag"
                       >
                         <TagIcon size={10} />
                         <span>{tag.name}</span>
                         {(canvas.owner.id === user?.id || canvas.owner.id !== user?.id) && (
                           <button
                             onClick={(e) => handleRemoveTag(canvas.id, tag.id, e)}
-                            className="opacity-0 group-hover:opacity-100 hover:text-red-600 transition-opacity"
+                            className="opacity-0 group-hover/tag:opacity-100 hover:text-[color:var(--coral-deep)] transition-opacity"
                           >
                             <X size={10} />
                           </button>
                         )}
                       </div>
                     ))}
-                    
+
                     {/* Add Tag Button/Input */}
                     {!showTagInput[canvas.id] ? (
                       <button
@@ -537,7 +538,7 @@ export default function GalleryPage() {
                           e.stopPropagation();
                           setShowTagInput({ ...showTagInput, [canvas.id]: true });
                         }}
-                        className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 rounded-full text-xs flex items-center gap-1 transition-colors"
+                        className="px-2.5 py-0.5 rounded-full text-xs font-body font-bold flex items-center gap-1 text-[color:var(--ink-soft)] bg-[color:color-mix(in_srgb,var(--ink)_8%,transparent)] hover:bg-[color:color-mix(in_srgb,var(--ink)_14%,transparent)] transition-colors"
                         title="Add tag"
                       >
                         <Plus size={10} />
@@ -558,14 +559,14 @@ export default function GalleryPage() {
                               setTagInputValue('');
                             }
                           }}
-                          className="w-24 px-2 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:border-[#f08080]"
+                          className="sketch-input !w-24 !px-2 !py-0.5 !text-xs"
                           autoFocus
                           disabled={addingTag}
                         />
                         <button
                           onClick={() => handleAddTag(canvas.id, tagInputValue)}
                           disabled={addingTag || !tagInputValue.trim()}
-                          className="text-green-600 hover:text-green-700 disabled:opacity-50"
+                          className="text-[color:var(--coral)] hover:text-[color:var(--coral-deep)] disabled:opacity-50"
                         >
                           <Plus size={14} />
                         </button>
@@ -574,7 +575,7 @@ export default function GalleryPage() {
                             setShowTagInput({ ...showTagInput, [canvas.id]: false });
                             setTagInputValue('');
                           }}
-                          className="text-gray-500 hover:text-gray-700"
+                          className="text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
                         >
                           <X size={14} />
                         </button>
@@ -584,20 +585,20 @@ export default function GalleryPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 pt-2 border-t border-gray-200">
+                <div className="flex gap-2 pt-2 border-t border-[color:color-mix(in_srgb,var(--ink)_10%,transparent)]">
                   <button
                     onClick={(e) => handleDuplicate(canvas.id, e)}
-                    className="flex-1 py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded flex items-center justify-center gap-1 text-sm transition-colors"
+                    className="flex-1 py-2 px-3 rounded-md flex items-center justify-center gap-1 text-sm font-body font-bold text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] bg-[color:color-mix(in_srgb,var(--ink)_6%,transparent)] hover:bg-[color:color-mix(in_srgb,var(--ink)_12%,transparent)] transition-colors"
                     title="Duplicate"
                   >
                     <Copy size={14} />
                     Copy
                   </button>
-                  
+
                   {canvas.owner.id === user?.id && (
                     <button
                       onClick={(e) => handleDelete(canvas.id, e)}
-                      className="py-2 px-3 bg-red-100 hover:bg-red-200 text-red-700 rounded flex items-center justify-center transition-colors"
+                      className="py-2 px-3 rounded-md flex items-center justify-center text-[#c0392b] bg-[color:color-mix(in_srgb,#c0392b_10%,transparent)] hover:bg-[color:color-mix(in_srgb,#c0392b_20%,transparent)] transition-colors"
                       title="Delete"
                     >
                       <Trash2 size={14} />

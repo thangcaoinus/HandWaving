@@ -264,10 +264,10 @@ export default function CanvasBoard() {
       
       {/* Loading Screen - show when loading API data for existing canvas */}
       {loading && !isNew && canvasId && (
-        <div className="fixed inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="sketch-panel bg-gradient-to-br from-[#f08080] to-[#ffdab9] px-8 py-6 border-4 border-black flex flex-col items-center gap-4">
-            <Loader2 className="animate-spin text-6xl h-16 w-16" />
-            <p className="text-2xl font-bold -rotate-1" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
+        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 bg-[color:color-mix(in_srgb,var(--paper)_82%,transparent)]">
+          <div className="sketch-panel paper-card px-8 py-6 border-2 border-[color:color-mix(in_srgb,var(--ink)_12%,transparent)] flex flex-col items-center gap-4">
+            <Loader2 className="animate-spin h-16 w-16 text-[color:var(--coral)]" />
+            <p className="font-display text-2xl -rotate-1 text-[color:var(--ink)]">
               Loading Canvas...
             </p>
           </div>
@@ -277,9 +277,9 @@ export default function CanvasBoard() {
       {/* View-Only Indicator (bottom-left corner) */}
       {!canEdit && userRole === 'VIEWER' && (
         <div className="fixed bottom-24 left-4 pointer-events-none z-10">
-          <div className="bg-yellow-100/90 sketch-panel px-4 py-2 border-2 border-yellow-300 flex items-center gap-2">
+          <div className="bg-yellow-100/90 sketch-panel px-4 py-2 border-2 border-yellow-300 flex items-center gap-2 text-yellow-900">
             <Eye className="w-5 h-5" />
-            <span className="font-bold text-sm" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
+            <span className="font-display text-base">
               View Only
             </span>
           </div>

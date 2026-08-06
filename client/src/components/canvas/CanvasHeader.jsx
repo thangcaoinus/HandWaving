@@ -85,18 +85,16 @@ export default function CanvasHeader() {
               onChange={(e) => setEditValue(e.target.value)}
               onBlur={handleTitleSubmit}
               onKeyDown={handleTitleKeyDown}
-              className="w-full px-3 py-2 bg-white sketch-panel border-2 border-[#f08080] text-sm font-bold text-center"
-              style={{ fontFamily: 'Comic Sans MS, cursive' }}
+              className="w-full px-3 py-2 paper-card sketch-panel border-2 border-[color:var(--coral)] text-sm font-bold text-center font-display text-[color:var(--ink)]"
               autoFocus
               maxLength={100}
             />
           ) : (
             <div
               onClick={handleTitleClick}
-              className={`px-3 py-2 bg-white sketch-panel text-sm font-bold truncate text-center ${
-                (isLocalCanvas || isOwner) && isAuthenticated ? 'cursor-pointer hover:bg-gray-50' : ''
+              className={`px-3 py-2 paper-card sketch-panel text-sm font-bold truncate text-center font-display text-[color:var(--ink)] ${
+                (isLocalCanvas || isOwner) && isAuthenticated ? 'cursor-pointer hover:brightness-[0.97]' : ''
               }`}
-              style={{ fontFamily: 'Comic Sans MS, cursive' }}
               title={(isLocalCanvas || isOwner) && isAuthenticated ? 'Click to edit title' : canvasTitle}
             >
               {canvasTitle}
@@ -106,26 +104,26 @@ export default function CanvasHeader() {
 
         {/* Status - Only show when authenticated */}
         {isAuthenticated && (
-          <div className="flex items-center gap-2 bg-white sketch-panel px-3 py-2 text-xs">
+          <div className="flex items-center gap-2 paper-card sketch-panel px-3 py-2 text-xs">
             {saving ? (
               <>
                 <Loader2 size={14} className="animate-spin text-blue-500" />
-                <span className="font-medium text-gray-700">Saving...</span>
+                <span className="font-bold text-[color:var(--ink)]">Saving...</span>
               </>
             ) : hasUnsavedChanges ? (
               <>
                 <Clock size={14} className="text-yellow-500" />
-                <span className="font-medium text-gray-700">Unsaved</span>
+                <span className="font-bold text-[color:var(--ink)]">Unsaved</span>
               </>
             ) : lastSaved ? (
               <>
                 <CheckCircle2 size={14} className="text-green-500" />
-                <span className="text-gray-600">{timeSinceLastSave}</span>
+                <span className="text-[color:var(--ink-soft)]">{timeSinceLastSave}</span>
               </>
             ) : (
               <>
-                <Clock size={14} className="text-gray-400" />
-                <span className="text-gray-500">Not saved</span>
+                <Clock size={14} className="text-[color:var(--ink-soft)]" />
+                <span className="text-[color:var(--ink-soft)]">Not saved</span>
               </>
             )}
           </div>
@@ -138,7 +136,7 @@ export default function CanvasHeader() {
           {/* Anonymous username indicator */}
           <div className="bg-blue-100/90 border-2 border-blue-300 sketch-panel px-3 py-2 flex items-center gap-2">
             <UserCircle size={14} className="text-blue-600" />
-            <span className="text-xs font-medium text-gray-700" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
+            <span className="text-xs font-bold font-display text-[color:var(--ink)]">
               {localStorage.getItem('anonymousUsername') || 'Anonymous User'}
             </span>
           </div>
@@ -149,8 +147,7 @@ export default function CanvasHeader() {
               const returnUrl = window.location.pathname + window.location.search;
               navigate(`/login?returnTo=${encodeURIComponent(returnUrl)}`);
             }}
-            className="bg-[#f08080] hover:bg-[#e07070] text-white px-3 py-2 sketch-button flex items-center gap-2 text-xs font-bold transition-all hover:scale-105 active:scale-95"
-            style={{ fontFamily: 'Comic Sans MS, cursive' }}
+            className="btn-coral focus-sketch !text-xs !px-3 !py-2"
           >
             <LogIn size={14} />
             Login

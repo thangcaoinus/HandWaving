@@ -18,8 +18,8 @@ export default function ShapePickerPanel() {
   ];
 
   return (
-    <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white sketch-panel border-2 border-black/5 px-3 py-2.5 z-20 flex items-center gap-2 max-w-fit">
-      <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">Shape:</span>
+    <div className="fixed top-24 left-1/2 -translate-x-1/2 paper-card sketch-panel border-2 border-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] px-3 py-2.5 z-20 flex items-center gap-2 max-w-fit">
+      <span className="text-xs font-bold text-[color:var(--ink-soft)] uppercase tracking-wide">Shape:</span>
       {shapes.map((shape) => {
         const Icon = shape.Icon;
         return (
@@ -28,10 +28,10 @@ export default function ShapePickerPanel() {
             onClick={() => updateInsertShapeType(shape.id)}
             className={`w-8 h-8 sketch-button transition-all duration-150 flex items-center justify-center border-2 ${
               insertShapeType === shape.id
-                ? "text-white shadow-md border-[#f08080]"
-                : "bg-gray-50 text-gray-600 hover:text-[#f08080] border-transparent hover:border-[#fbc4ab]"
+                ? "text-white shadow-md border-[color:var(--coral)]"
+                : "bg-[color:color-mix(in_srgb,var(--ink)_5%,transparent)] text-[color:var(--ink-soft)] hover:text-[color:var(--coral)] border-transparent hover:border-[color:color-mix(in_srgb,var(--coral)_40%,transparent)]"
             }`}
-            style={insertShapeType === shape.id ? { backgroundColor: '#f08080' } : {}}
+            style={insertShapeType === shape.id ? { backgroundColor: 'var(--coral)' } : {}}
             title={shape.label}
           >
             <Icon size={16} strokeWidth={2.5} />

@@ -28,9 +28,11 @@ textarea {
 /* Rough sketch effect for panels */
 .sketch-panel {
   border-radius: 12px 14px 11px 13px / 13px 11px 14px 12px;
-  box-shadow: 
-    2px 2px 0 rgba(0, 0, 0, 0.1),
-    4px 4px 0 rgba(0, 0, 0, 0.05);
+  /* Real depth: offset + soft blur, warm-tinted so it reads as paper lifted off a coral surface */
+  box-shadow:
+    0 1px 2px rgba(120, 60, 45, 0.06),
+    0 4px 10px rgba(120, 60, 45, 0.08),
+    0 12px 28px rgba(120, 60, 45, 0.10);
 }
 
 /* Slight rotation for buttons to feel hand-placed */
@@ -73,4 +75,269 @@ textarea {
   background: currentColor;
   border-radius: 50%;
   opacity: 0.4;
+}
+
+/* ============================================================
+   Landing page: premium-playful foundations
+   ============================================================ */
+
+:root {
+  --font-display: 'Patrick Hand', 'Comic Sans MS', cursive;
+  --font-body: 'Nunito Variable', ui-sans-serif, system-ui, sans-serif;
+  /* Ink + warm paper ground the page; coral is the ACCENT, not the wash. */
+  --paper: #faf5ee;         /* warm off-white base — the "canvas" */
+  --paper-deep: #f2e9dd;    /* slightly deeper paper for edges */
+  --ink: #2c2a28;           /* near-black warm ink — text + hand-drawn strokes */
+  --ink-soft: #6b6560;      /* secondary text, warm gray from the ink hue */
+  --coral: #f0685f;         /* accent — a touch deeper/crisper than before */
+  --coral-deep: #d84f4a;
+  --peach: #f8ad9d;
+  --sand: #ffdab9;
+}
+
+/* Accent voice — the hand-drawn face, used ONLY for display/emphasis */
+.font-display { font-family: var(--font-display); }
+/* Body voice — clean rounded sans for everything readable */
+.font-body { font-family: var(--font-body); }
+
+/* The paper surface: warm base + a WHISPER of ruled grid so it reads as a
+   real canvas, not a blank page and not a spreadsheet. Alpha is baked into
+   the line color (a gradient can't dim a var() color on its own). */
+.paper-surface {
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(rgba(44, 42, 40, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(44, 42, 40, 0.035) 1px, transparent 1px);
+  background-size: 46px 46px;
+}
+
+/* CTA lift with real shadow travel, not just a nudge */
+.cta-lift {
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.22s ease-out;
+}
+.cta-lift:hover {
+  transform: translateY(-3px) rotate(-0.6deg);
+}
+.cta-lift:active {
+  transform: translateY(-1px) rotate(0deg);
+}
+
+/* Keyboard focus that fits the world (coral ring, offset reads on paper) */
+.focus-sketch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--paper), 0 0 0 6px var(--coral);
+}
+
+/* ============================================================
+   Shared component layer — one definition, applied app-wide.
+   This is what stops the palette from drifting out of sync again:
+   forms and buttons pull from tokens here instead of hand-copying
+   the same Tailwind string into every file.
+   ============================================================ */
+
+/* Paper-tinted surface for cards that sit ON the paper-surface — a
+   sheet lifted just off the canvas, not stark clinical white. */
+.paper-card {
+  background-color: color-mix(in srgb, var(--paper) 82%, white);
+}
+
+/* Form field: soft ink border on paper, coral border + ring on focus. */
+.sketch-input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background-color: color-mix(in srgb, var(--paper) 60%, white);
+  border: 2px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  border-radius: 7px 9px 8px 7px / 8px 7px 9px 8px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.sketch-input::placeholder { color: var(--ink-soft); opacity: 0.7; }
+.sketch-input:focus {
+  outline: none;
+  border-color: var(--coral);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--coral) 22%, transparent);
+}
+
+/* Buttons share the hand-placed radius + lift; only the fill changes. */
+.btn-coral,
+.btn-ghost,
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 0.6rem 1.15rem;
+  border-radius: 6px 8px 7px 6px / 7px 6px 8px 7px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+.btn-coral:hover:not(:disabled),
+.btn-ghost:hover:not(:disabled),
+.btn-danger:hover:not(:disabled) { transform: translateY(-2px) rotate(-0.6deg); }
+.btn-coral:active:not(:disabled),
+.btn-ghost:active:not(:disabled),
+.btn-danger:active:not(:disabled) { transform: translateY(0) rotate(0deg); }
+.btn-coral:disabled,
+.btn-ghost:disabled,
+.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Primary — the one loud coral action. White text clears 4.5:1 on coral. */
+.btn-coral {
+  background-color: var(--coral);
+  color: #fff;
+  box-shadow: 0 8px 20px -6px color-mix(in srgb, var(--coral-deep) 55%, transparent);
+}
+.btn-coral:hover:not(:disabled) { background-color: var(--coral-deep); }
+
+/* Secondary — quiet ink outline, fills with ink on hover. */
+.btn-ghost {
+  background-color: transparent;
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+/* Destructive — keeps red semantics, same shape language. */
+.btn-danger {
+  background-color: #c0392b;
+  color: #fff;
+}
+.btn-danger:hover:not(:disabled) { background-color: #a5301f; }
+
+/* Status boxes — tinted to sit on paper, not raw #dcfce7/#fee2e2 blocks. */
+.status-ok,
+.status-err {
+  padding: 0.6rem 0.85rem;
+  font-size: 0.875rem;
+  border: 2px solid;
+  border-radius: 7px 9px 8px 7px / 8px 7px 9px 8px;
+}
+.status-ok {
+  color: #2f6b3a;
+  background-color: color-mix(in srgb, #57ab5a 16%, var(--paper));
+  border-color: color-mix(in srgb, #57ab5a 45%, transparent);
+}
+.status-err {
+  color: var(--coral-deep);
+  background-color: color-mix(in srgb, var(--coral) 14%, var(--paper));
+  border-color: color-mix(in srgb, var(--coral) 40%, transparent);
+}
+
+/* Tag pill — coral-tinted, replaces the salmon/sand chips. */
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  font-family: var(--font-body);
+  font-weight: 700;
+  color: var(--coral-deep);
+  background-color: color-mix(in srgb, var(--coral) 15%, var(--paper));
+  border: 1.5px solid color-mix(in srgb, var(--coral) 30%, transparent);
+  border-radius: 999px;
+  transition: background-color 0.15s ease;
+}
+.tag-chip:hover { background-color: color-mix(in srgb, var(--coral) 25%, var(--paper)); }
+
+/* ---- Hero: "draw -> snaps to smart shape" -------------------------------
+   A rough freehand stroke draws itself in, then the clean geometric shape
+   snaps over it. Driven by stroke-dashoffset (the draw) + opacity/scale
+   (the snap). Three shapes take turns over one 9s loop. */
+
+/* ONE shared 12s clock, no per-cell delays — this is what guarantees zero
+   overlap. Each cell owns a 1/3 slice: draw-in -> snap -> hold -> clear, and
+   sits at opacity 0 for the rest of the loop. Percentages below are absolute
+   positions on the 12s timeline (33.3% ≈ 4s per shape).
+   Rough stroke: draws in via dashoffset, then fades as the clean shape snaps. */
+
+.hero-rough {
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+  opacity: 0;
+  animation: 12s ease-in-out infinite both;
+}
+.hero-clean {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: 12s ease-in-out infinite both;
+}
+
+.hero-cell-1 .hero-rough { animation-name: rough-1; }
+.hero-cell-1 .hero-clean { animation-name: snap-1; }
+.hero-cell-2 .hero-rough { animation-name: rough-2; }
+.hero-cell-2 .hero-clean { animation-name: snap-2; }
+.hero-cell-3 .hero-rough { animation-name: rough-3; }
+.hero-cell-3 .hero-clean { animation-name: snap-3; }
+
+/* --- Cell 1: active 0%–33% --- */
+@keyframes rough-1 {
+  0%  { stroke-dashoffset: var(--len); opacity: 0.9; }
+  10% { stroke-dashoffset: 0;          opacity: 0.9; }
+  15% { opacity: 0; } 100% { opacity: 0; }
+}
+@keyframes snap-1 {
+  0%,12% { opacity: 0; transform: scale(0.94); }
+  16%    { opacity: 1; transform: scale(1.04); }
+  20%    { transform: scale(1); }
+  28%    { opacity: 1; }
+  33%,100%{ opacity: 0; }
+}
+/* --- Cell 2: active 33%–66% --- */
+@keyframes rough-2 {
+  0%,33% { stroke-dashoffset: var(--len); opacity: 0; }
+  33.01%{ opacity: 0.9; }
+  43%   { stroke-dashoffset: 0; opacity: 0.9; }
+  48%   { opacity: 0; } 100% { opacity: 0; }
+}
+@keyframes snap-2 {
+  0%,45% { opacity: 0; transform: scale(0.94); }
+  49%    { opacity: 1; transform: scale(1.04); }
+  53%    { transform: scale(1); }
+  61%    { opacity: 1; }
+  66%,100%{ opacity: 0; }
+}
+/* --- Cell 3: active 66%–100% --- */
+@keyframes rough-3 {
+  0%,66% { stroke-dashoffset: var(--len); opacity: 0; }
+  66.01%{ opacity: 0.9; }
+  76%   { stroke-dashoffset: 0; opacity: 0.9; }
+  81%   { opacity: 0; } 100% { opacity: 0; }
+}
+@keyframes snap-3 {
+  0%,78% { opacity: 0; transform: scale(0.94); }
+  82%    { opacity: 1; transform: scale(1.04); }
+  86%    { transform: scale(1); }
+  95%    { opacity: 1; }
+  100%   { opacity: 0; }
+}
+
+/* Gentle float for curated background doodles — barely-there life */
+@keyframes doodle-float {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50%      { transform: translateY(-8px) rotate(calc(var(--r, 0deg) + 2deg)); }
+}
+.doodle-float {
+  animation: doodle-float 7s ease-in-out infinite;
+}
+
+/* Respect users who don't want motion: show a single resolved clean shape
+   (cell 1's circle), hide the rest — not all three stacked. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-rough { animation: none; opacity: 0; }
+  .hero-clean { animation: none; opacity: 0; transform: none; }
+  .hero-cell-1 .hero-clean { opacity: 1; }
+  .doodle-float { animation: none; }
 }

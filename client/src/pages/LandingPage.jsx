@@ -1,260 +1,188 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generateUniqueId } from '../utils/idGenerator';
-import { Pencil, Users, Save, Sparkles } from 'lucide-react';
+import { Pencil, Users, Save, Sparkles, ArrowRight } from 'lucide-react';
 
 export default function LandingPage() {
   const navigate = useNavigate();
 
   const handleStartDrawing = () => {
-    // Create local canvas ID
     const localCanvasId = `local-${generateUniqueId('canvas')}`;
     navigate(`/canvas/${localCanvasId}`);
   };
 
-  const handleLogin = () => {
-    navigate('/login');
-  };
-
-  const handleRegister = () => {
-    navigate('/login?mode=register');
-  };
+  const handleLogin = () => navigate('/login');
+  const handleRegister = () => navigate('/login?mode=register');
 
   return (
-    <div className="h-screen bg-gradient-to-br from-[#f08080] via-[#f8ad9d] to-[#ffdab9] flex items-center justify-center p-4 md:p-6 lg:p-8 overflow-hidden relative">
-      {/* Drawing tool doodles floating in the background - organized symmetrically */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-        {/* Top left corner - Pencil */}
-        <g transform="translate(100, 80) rotate(-35)">
-          <rect x="0" y="0" width="12" height="80" fill="#ffd700" stroke="#000" strokeWidth="2"/>
-          <polygon points="6,80 0,95 12,95" fill="#f4a460" stroke="#000" strokeWidth="2"/>
-          <polygon points="6,95 3,100 9,100" fill="#333" />
-          <rect x="0" y="5" width="12" height="8" fill="#ffb6c1" />
-        </g>
+    <div className="paper-surface min-h-screen relative overflow-hidden font-body text-[color:var(--ink)]">
 
-        {/* Top right corner - Eraser */}
-        <g transform="translate(1450, 80) rotate(35)">
-          <rect x="0" y="0" width="50" height="30" rx="4" fill="#ffb6c1" stroke="#000" strokeWidth="2"/>
-          <rect x="5" y="5" width="40" height="20" fill="#ffc0cb" />
+      {/* Doodles roam the whole paper — ink strokes, like margin scribbles */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <g stroke="var(--ink)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.12">
+          <circle className="doodle-float" style={{ '--r': '-4deg' }} cx="1230" cy="130" r="30" />
+          <path className="doodle-float" style={{ '--r': '5deg' }} d="M120 690 q60 -44 140 -12 M232 656 l32 20 -34 18" />
+          <path className="doodle-float" style={{ '--r': '3deg' }} d="M1300 800 l58 -6 l4 62 l-64 8 l-2 -66 z" />
+          <path className="doodle-float" style={{ '--r': '-6deg' }} d="M70 300 q40 -28 80 0 t80 0" />
         </g>
-
-        {/* Left side - Ruler (vertical) */}
-        <g transform="translate(60, 450) rotate(-90)">
-          <rect x="0" y="0" width="120" height="25" fill="#87ceeb" stroke="#000" strokeWidth="2"/>
-          <line x1="10" y1="0" x2="10" y2="10" stroke="#000" strokeWidth="1"/>
-          <line x1="30" y1="0" x2="30" y2="15" stroke="#000" strokeWidth="1"/>
-          <line x1="50" y1="0" x2="50" y2="10" stroke="#000" strokeWidth="1"/>
-          <line x1="70" y1="0" x2="70" y2="15" stroke="#000" strokeWidth="1"/>
-          <line x1="90" y1="0" x2="90" y2="10" stroke="#000" strokeWidth="1"/>
-          <line x1="110" y1="0" x2="110" y2="15" stroke="#000" strokeWidth="1"/>
-        </g>
-
-        {/* Right side - Marker (vertical) */}
-        <g transform="translate(1500, 450) rotate(90)">
-          <rect x="0" y="0" width="15" height="70" fill="#9370db" stroke="#000" strokeWidth="2"/>
-          <polygon points="7.5,70 3,80 12,80" fill="#333" stroke="#000" strokeWidth="2"/>
-          <rect x="0" y="3" width="15" height="12" fill="#fff" />
-          <circle cx="7.5" cy="9" r="3" fill="#9370db" />
-        </g>
-
-        {/* Bottom left corner - Pen */}
-        <g transform="translate(120, 780) rotate(-35)">
-          <rect x="0" y="0" width="10" height="75" fill="#000" stroke="#333" strokeWidth="1"/>
-          <polygon points="5,75 2,85 8,85" fill="#silver" stroke="#000" strokeWidth="1"/>
-          <rect x="0" y="2" width="10" height="15" fill="#4169e1" />
-          <circle cx="5" cy="10" r="2" fill="#fff" />
-        </g>
-
-        {/* Bottom right corner - Crayon */}
-        <g transform="translate(1430, 790) rotate(35)">
-          <rect x="0" y="0" width="18" height="65" rx="2" fill="#ff69b4" stroke="#000" strokeWidth="2"/>
-          <polygon points="9,65 4,78 14,78" fill="#ff1493" stroke="#000" strokeWidth="2"/>
-          <text x="4" y="15" fontSize="10" fill="#fff" fontFamily="Arial">C</text>
+        {/* a couple of coral accents so the field isn't pure gray */}
+        <g stroke="var(--coral)" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.22">
+          <path className="doodle-float" style={{ '--r': '2deg' }} d="M1180 420 l70 40 l-120 16 z" />
+          <circle className="doodle-float" style={{ '--r': '-3deg' }} cx="110" cy="560" r="18" />
         </g>
       </svg>
 
-      {/* Single unified canvas panel */}
-      <div className="max-w-5xl w-full h-full max-h-[min(90vh,900px)] flex items-center justify-center relative z-10">
-        <div className="sketch-panel bg-white relative overflow-hidden w-full" style={{
-          boxShadow: `
-            0 2px 4px rgba(0,0,0,0.1),
-            0 4px 8px rgba(0,0,0,0.1),
-            0 8px 16px rgba(0,0,0,0.15),
-            0 16px 24px rgba(0,0,0,0.15),
-            inset 0 -2px 4px rgba(0,0,0,0.05)
-          `
-        }}>
-          {/* Canvas texture/grid subtle background */}
-          <div className="absolute inset-0 opacity-[0.03]" style={{
-            backgroundImage: `
-              linear-gradient(0deg, transparent 24%, rgba(0,0,0,0.05) 25%, rgba(0,0,0,0.05) 26%, transparent 27%, transparent 74%, rgba(0,0,0,0.05) 75%, rgba(0,0,0,0.05) 76%, transparent 77%, transparent),
-              linear-gradient(90deg, transparent 24%, rgba(0,0,0,0.05) 25%, rgba(0,0,0,0.05) 26%, transparent 27%, transparent 74%, rgba(0,0,0,0.05) 75%, rgba(0,0,0,0.05) 76%, transparent 77%, transparent)
-            `,
-            backgroundSize: '50px 50px'
-          }}></div>
+      {/* Content sits directly on the canvas */}
+      <div className="relative z-10 min-h-screen flex flex-col">
+        <div className="flex-1 flex items-center">
+          <div className="w-full max-w-6xl mx-auto px-6 md:px-10 lg:px-16 py-14">
+            <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-16 items-center">
 
-          {/* Playful doodles scattered across the canvas - LOTS MORE! */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-10" xmlns="http://www.w3.org/2000/svg">
-            {/* Top left area */}
-            <circle cx="8%" cy="12%" r="25" fill="none" stroke="#f08080" strokeWidth="3" />
-            <rect x="48" y="72" width="30" height="25" fill="none" stroke="#ffa07a" strokeWidth="2.5" transform="rotate(-12 80 90)" />
-            <path d="M 240 162 L 288 126 L 336 162 Z" fill="none" stroke="#f8ad9d" strokeWidth="2.5" />
+              {/* Left: message + actions */}
+              <div className="text-center lg:text-left">
+                <h1 className="font-display text-[color:var(--coral)] leading-[0.92] text-6xl md:text-7xl lg:text-[7.5rem] mb-6 tracking-tight">
+                  HandWaving
+                </h1>
 
-            {/* Top center */}
-            <circle cx="45%" cy="8%" r="20" fill="none" stroke="#fbc4ab" strokeWidth="3" />
-            <path d="M 608 135 Q 640 108 672 135 T 736 135" fill="none" stroke="#f08080" strokeWidth="2.5" />
-            <rect x="800" y="45" width="35" height="20" fill="none" stroke="#ffa07a" strokeWidth="2.5" transform="rotate(8 832 72)" />
+                <p className="font-display text-3xl md:text-4xl text-[color:var(--ink)] leading-tight mb-4 max-w-lg mx-auto lg:mx-0">
+                  Wave your hand. Get clean shapes.
+                </p>
+                <p className="font-body text-lg md:text-xl text-[color:var(--ink-soft)] leading-snug mb-9 max-w-lg mx-auto lg:mx-0">
+                  Bad handwriting? Mouse-drawing a nightmare? Sketch it however roughly. It snaps the mess into crisp geometry.
+                </p>
 
-            {/* Top right area */}
-            <circle cx="75%" cy="10%" r="22" fill="none" stroke="#f8ad9d" strokeWidth="3" />
-            <path d="M 1312 135 L 1472 135 M 1424 108 L 1472 135 L 1424 162" fill="none" stroke="#f08080" strokeWidth="3" />
-            <path d="M 1408 72 L 1520 108 L 1456 162 Z" fill="none" stroke="#fbc4ab" strokeWidth="2.5" />
+                {/* Primary CTA — coral, the one loud thing */}
+                <button
+                  onClick={handleStartDrawing}
+                  className="cta-lift focus-sketch sketch-button group bg-[color:var(--coral)] text-white text-xl md:text-2xl px-9 py-4 md:py-5 inline-flex items-center gap-3 shadow-[0_10px_24px_-6px_rgba(216,79,74,0.55)] font-display"
+                >
+                  <Pencil className="w-6 h-6" strokeWidth={2.5} />
+                  Start Sketching
+                  <ArrowRight className="w-6 h-6 transition-transform group-hover:translate-x-1" strokeWidth={2.5} />
+                </button>
 
-            {/* Left side middle */}
-            <path d="M 80 315 L 192 270 L 224 342 Z" fill="none" stroke="#f08080" strokeWidth="2.5" transform="rotate(-5 128 315)" />
-            <rect x="48" y="378" width="40" height="30" fill="none" stroke="#ffa07a" strokeWidth="3" transform="rotate(-8 112 423)" />
-            <circle cx="10%" cy="60%" r="18" fill="none" stroke="#f8ad9d" strokeWidth="2.5" />
+                <p className="text-base text-[color:var(--ink-soft)] mt-5 flex items-center justify-center lg:justify-start gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  No account needed · Runs in your browser · Instant
+                </p>
 
-            {/* Center area */}
-            <path d="M 672 360 Q 720 342 768 360 T 864 360" fill="none" stroke="#fbc4ab" strokeWidth="3" />
-            <circle cx="55%" cy="52%" r="28" fill="none" stroke="#f08080" strokeWidth="2.5" />
-            <rect x="560" y="522" width="38" height="32" fill="none" stroke="#f8ad9d" strokeWidth="2.5" transform="rotate(5 640 558)" />
+                {/* Secondary auth — ink-outlined, quiet next to the coral CTA */}
+                <div className="flex items-center gap-3 justify-center lg:justify-start mt-8">
+                  <span className="text-base text-[color:var(--ink-soft)] hidden sm:inline">Coming back?</span>
+                  <button
+                    onClick={handleLogin}
+                    className="cta-lift focus-sketch sketch-button bg-transparent text-[color:var(--ink)] border-2 border-[color:var(--ink)] px-5 py-2 text-base font-bold font-display hover:bg-[color:var(--ink)] hover:text-[color:var(--paper)] transition-colors"
+                  >
+                    Login
+                  </button>
+                  <button
+                    onClick={handleRegister}
+                    className="cta-lift focus-sketch sketch-button bg-transparent text-[color:var(--coral-deep)] border-2 border-[color:var(--coral)] px-5 py-2 text-base font-bold font-display hover:bg-[color:var(--coral)] hover:text-white transition-colors"
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              </div>
 
-            {/* Right side middle */}
-            <path d="M 1360 315 L 1440 360 L 1312 378 Z" fill="none" stroke="#ffa07a" strokeWidth="2.5" />
-            <circle cx="92%" cy="48%" r="24" fill="none" stroke="#f08080" strokeWidth="3" />
-            <path d="M 1360 495 Q 1408 468 1456 495 T 1520 522" fill="none" stroke="#fbc4ab" strokeWidth="3" />
-            <rect x="1312" y="540" width="32" height="28" fill="none" stroke="#f8ad9d" strokeWidth="2.5" transform="rotate(-10 1408 585)" />
+              {/* Right: the draw -> snap evidence, framed like a torn canvas swatch */}
+              <div className="relative mx-auto w-full max-w-md">
+                <div className="relative aspect-square rounded-[20px_24px_18px_22px/22px_18px_24px_20px] bg-white/70 backdrop-blur-[1px] border-2 border-[color:var(--ink)]/12 shadow-[0_18px_40px_-12px_rgba(44,42,40,0.22)] overflow-hidden">
+                  {/* the swatch's own faint grid */}
+                  <div className="absolute inset-0 opacity-[0.05]" style={{
+                    backgroundImage: 'linear-gradient(var(--ink) 1px, transparent 1px), linear-gradient(90deg, var(--ink) 1px, transparent 1px)',
+                    backgroundSize: '30px 30px'
+                  }} />
+                  <DrawSnapHero />
+                  <span className="absolute bottom-3 left-1/2 -translate-x-1/2 text-sm font-display text-[color:var(--ink-soft)] whitespace-nowrap">
+                    rough in · clean out
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-            {/* Bottom left area */}
-            <circle cx="8%" cy="75%" r="26" fill="none" stroke="#fbc4ab" strokeWidth="3" />
-            <path d="M 240 738 L 352 693 L 384 765 Z" fill="none" stroke="#f08080" strokeWidth="2.5" />
-            <rect x="48" y="792" width="35" height="25" fill="none" stroke="#ffa07a" strokeWidth="2.5" transform="rotate(6 128 828)" />
-
-            {/* Bottom center */}
-            <path d="M 640 765 L 768 765 M 720 738 L 768 765 L 720 792" fill="none" stroke="#f8ad9d" strokeWidth="3" />
-            <circle cx="52% " cy="78%" r="20" fill="none" stroke="#f08080" strokeWidth="2.5" />
-            <path d="M 560 828 L 672 792 L 720 846 Z" fill="none" stroke="#fbc4ab" strokeWidth="2.5" />
-
-            {/* Bottom right area */}
-            <path d="M 1248 675 L 1344 738 L 1152 756 Z" fill="none" stroke="#f08080" strokeWidth="3" />
-            <circle cx="88%" cy="80%" r="23" fill="none" stroke="#ffa07a" strokeWidth="3" />
-            <rect x="1200" y="792" width="36" height="24" fill="none" stroke="#f8ad9d" strokeWidth="2.5" transform="rotate(-7 1218 804)" />
-            <path d="M 1440 810 Q 1472 792 1504 810 T 1536 846" fill="none" stroke="#fbc4ab" strokeWidth="2.5" />
-
-            {/* Extra scattered small elements */}
-            <circle cx="25%" cy="30%" r="15" fill="none" stroke="#f08080" strokeWidth="2" />
-            <path d="M 1088 225 L 1152 225 L 1120 270 Z" fill="none" stroke="#ffa07a" strokeWidth="2" />
-            <circle cx="30%" cy="72%" r="16" fill="none" stroke="#f8ad9d" strokeWidth="2" />
-            <path d="M 992 612 L 1056 630 L 1008 666 Z" fill="none" stroke="#fbc4ab" strokeWidth="2" />
+        {/* Feature row — sits low on the paper, ink text, hand-drawn divider */}
+        <div className="w-full max-w-6xl mx-auto px-6 md:px-10 lg:px-16 pb-16">
+          <svg className="w-full h-3 mb-9 text-[color:var(--ink)]/15" preserveAspectRatio="none" viewBox="0 0 1000 12" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M0 7 q60 -6 120 0 t120 0 t120 0 t120 0 t120 0 t120 0 t120 0 t120 0" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
           </svg>
 
-          <div className="relative z-10 px-6 md:px-10 lg:px-12 py-8 md:py-10 lg:py-12 text-center">
-            {/* Title */}
-            <div className="mb-4 md:mb-6">
-              <h1
-                className="text-4xl md:text-5xl lg:text-6xl font-bold text-[#f08080]"
-                style={{ fontFamily: 'Comic Sans MS, cursive' }}
-              >
-                HandWaving
-              </h1>
-            </div>
-
-            {/* Tagline */}
-            <p
-              className="text-base md:text-lg lg:text-xl mb-6 md:mb-8 text-gray-700 leading-relaxed max-w-2xl mx-auto"
-              style={{ fontFamily: 'Comic Sans MS, cursive' }}
-            >
-              Draw freely and watch your sketches transform into <span className="text-[#f08080] font-bold">smart shapes!</span>
-            </p>
-
-            {/* Primary CTA */}
-            <button
-              onClick={handleStartDrawing}
-              className="sketch-button bg-gradient-to-r from-[#f08080] to-[#ffa07a] text-white text-xl md:text-2xl px-8 md:px-12 py-4 md:py-6 mb-4 hover:scale-105 active:scale-95 transition-transform shadow-lg flex items-center gap-3 mx-auto"
-              style={{ fontFamily: 'Comic Sans MS, cursive' }}
-            >
-              <Pencil className="w-6 h-6 md:w-7 md:h-7" strokeWidth={2.5} />
-              Start Drawing Now
-            </button>
-
-            <p className="text-xs md:text-sm text-gray-500 mb-6 md:mb-8 flex items-center justify-center gap-2 flex-wrap">
-              <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
-              <span>No account needed • Instant access • Auto-saves</span>
-            </p>
-
-            {/* Divider line */}
-            <div className="relative mb-6 md:mb-8">
-              <svg className="w-full h-2" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-                <path
-                  d="M 0,4 Q 100,2 200,4 T 400,4 T 600,4 T 800,4 T 1000,4"
-                  fill="none"
-                  stroke="#e0e0e0"
-                  strokeWidth="2"
-                />
-              </svg>
-            </div>
-
-            {/* Feature highlights in a row */}
-            <div className="grid grid-cols-3 gap-3 md:gap-6 mb-6 md:mb-8">
-              <div className="flex flex-col items-center">
-                <div className="mb-2 md:mb-3 p-2 md:p-3 rounded-full bg-[#f08080]/10">
-                  <Sparkles className="w-7 h-7 md:w-9 md:h-9 text-[#f08080]" strokeWidth={2.5} />
-                </div>
-                <div className="text-sm md:text-base font-bold mb-1" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
-                  Smart Shapes
-                </div>
-                <div className="text-xs md:text-sm text-gray-600 hidden md:block" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
-                  Auto-detect circles, arrows & more
-                </div>
-              </div>
-
-              <div className="flex flex-col items-center">
-                <div className="mb-2 md:mb-3 p-2 md:p-3 rounded-full bg-[#f8ad9d]/10">
-                  <Users className="w-7 h-7 md:w-9 md:h-9 text-[#f8ad9d]" strokeWidth={2.5} />
-                </div>
-                <div className="text-sm md:text-base font-bold mb-1" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
-                  Real-time Collab
-                </div>
-                <div className="text-xs md:text-sm text-gray-600 hidden md:block" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
-                  Draw together instantly
-                </div>
-              </div>
-
-              <div className="flex flex-col items-center">
-                <div className="mb-2 md:mb-3 p-2 md:p-3 rounded-full bg-[#ffa07a]/10">
-                  <Save className="w-7 h-7 md:w-9 md:h-9 text-[#ffa07a]" strokeWidth={2.5} />
-                </div>
-                <div className="text-sm md:text-base font-bold mb-1" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
-                  Auto-save
-                </div>
-                <div className="text-xs md:text-sm text-gray-600 hidden md:block" style={{ fontFamily: 'Comic Sans MS, cursive' }}>
-                  Never lose your work
-                </div>
-              </div>
-            </div>
-
-            {/* Auth buttons */}
-            <div className="flex gap-3 md:gap-4 justify-center">
-              <button
-                onClick={handleLogin}
-                className="sketch-button bg-white text-[#f08080] border-2 md:border-3 border-[#f08080] px-6 md:px-8 py-2 md:py-3 text-base md:text-lg hover:bg-[#f08080] hover:text-white transition-colors font-bold"
-                style={{ fontFamily: 'Comic Sans MS, cursive' }}
-              >
-                Login
-              </button>
-
-              <button
-                onClick={handleRegister}
-                className="sketch-button bg-gradient-to-r from-[#f8ad9d] to-[#fbc4ab] text-white border-2 md:border-3 border-[#f08080] px-6 md:px-8 py-2 md:py-3 text-base md:text-lg hover:from-[#f08080] hover:to-[#f8ad9d] transition-all font-bold shadow-md"
-                style={{ fontFamily: 'Comic Sans MS, cursive' }}
-              >
-                Sign Up
-              </button>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 md:gap-12">
+            <Feature
+              icon={<Sparkles className="w-6 h-6" strokeWidth={2.5} />}
+              title="Smart shapes"
+              body="Draw loose. Circles, rectangles, triangles and arrows snap crisp on their own."
+            />
+            <Feature
+              icon={<Users className="w-6 h-6" strokeWidth={2.5} />}
+              title="Draw together"
+              body="Live cursors, presence, and conflict-free sync so a whole room can sketch at once."
+            />
+            <Feature
+              icon={<Save className="w-6 h-6" strokeWidth={2.5} />}
+              title="Local-first"
+              body="Runs entirely in your browser. Add an account to sync and collaborate later."
+            />
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+/* Feature — coral icon badge, ink display title, ink-soft body. No card. */
+function Feature({ icon, title, body }) {
+  return (
+    <div className="text-center sm:text-left group">
+      <div className="inline-flex items-center justify-center w-12 h-12 mb-3 rounded-[14px_11px_13px_10px/12px_13px_10px_14px] bg-[color:var(--coral)]/12 text-[color:var(--coral)] transition-transform group-hover:-rotate-6">
+        {icon}
+      </div>
+      <h3 className="font-display text-2xl text-[color:var(--ink)] mb-1">{title}</h3>
+      <p className="font-body text-base text-[color:var(--ink-soft)] leading-relaxed max-w-[28ch] mx-auto sm:mx-0">{body}</p>
+    </div>
+  );
+}
+
+/* Evidence: a pencil-ink rough stroke draws itself, then the coral clean shape
+   snaps over it — the exact "rough in, clean out" promise. Three shapes cycle. */
+function DrawSnapHero() {
+  const ink = '#8a8580';   // pencil gray — a rough sketch, not final ink
+  const coral = '#f0685f'; // the smart-shape payoff
+  return (
+    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" aria-label="A hand-drawn stroke snapping into a clean shape">
+      {/* Cell 1 — squiggle -> circle */}
+      <g className="hero-cell-1">
+        <path
+          className="hero-rough"
+          style={{ '--len': 560 }}
+          d="M150 78 c-44 0 -74 30 -74 72 c0 44 34 72 74 72 c42 0 76 -30 74 -74 c-2 -40 -30 -68 -70 -70 c-8 0 -16 2 -22 6"
+          fill="none" stroke={ink} strokeWidth="5" strokeLinecap="round"
+        />
+        <circle className="hero-clean" cx="150" cy="150" r="72" fill="none" stroke={coral} strokeWidth="7" />
+      </g>
+
+      {/* Cell 2 — wobbly box -> rectangle */}
+      <g className="hero-cell-2">
+        <path
+          className="hero-rough"
+          style={{ '--len': 620 }}
+          d="M80 92 l142 -4 l4 118 l-148 6 l-2 -122 l6 0"
+          fill="none" stroke={ink} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"
+        />
+        <rect className="hero-clean" x="82" y="94" width="140" height="112" rx="4" fill="none" stroke={coral} strokeWidth="7" />
+      </g>
+
+      {/* Cell 3 — scrawled arrow -> clean arrow */}
+      <g className="hero-cell-3">
+        <path
+          className="hero-rough"
+          style={{ '--len': 340 }}
+          d="M66 178 q70 -68 150 -44 M188 116 l30 18 -14 32"
+          fill="none" stroke={ink} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"
+        />
+        <path className="hero-clean" d="M70 180 q68 -60 148 -44 M192 118 l28 18 -14 30" fill="none" stroke={coral} strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+    </svg>
   );
 }

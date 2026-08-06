@@ -163,7 +163,7 @@ const InlineTextEditor = forwardRef(function InlineTextEditor({
         fontFamily: 'Comic Sans MS, cursive',
         color: color,
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        border: '2px solid #f08080',
+        border: '2px solid var(--coral)',
         borderRadius: '4px',
         padding: '4px 6px',
         outline: 'none',
