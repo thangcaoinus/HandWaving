@@ -8,6 +8,7 @@ import {
   getBboxCenter,
 } from "../../../utils/geometry";
 import { detectHandle, getCursorForHandle } from "../../../utils/handles";
+import { isCoarsePointerEvent, COARSE_HANDLE_HIT_SCALE } from "../../../utils/pointerType";
 import { calculateTextBbox, resizeTextBox, ensureTextBox, refreshTextBounds } from "../../../utils/textBbox";
 import { logger } from "../../../utils/logger";
 
@@ -103,11 +104,12 @@ export function useTransformMode({
       return { handled: false };
     }
 
-    // Check for handle clicks first (resize or rotate)
+    // Check for handle clicks first (resize or rotate) — coarse pointers get a bigger grab zone.
     const handle = detectHandle(
       clickPoint,
       combinedBbox,
-      viewport.getCurrentZoom()
+      viewport.getCurrentZoom(),
+      isCoarsePointerEvent(e) ? COARSE_HANDLE_HIT_SCALE : 1
     );
     if (handle) {
       if (handle.type === "resize") {
@@ -309,7 +311,7 @@ export function useTransformMode({
     if (selectedStrokeIdsRef.current.size > 0) {
       const combinedBbox = getCombinedBoundingBox();
       const hoveredHandle = combinedBbox
-        ? detectHandle(currentPoint, combinedBbox, viewport.getCurrentZoom())
+        ? detectHandle(currentPoint, combinedBbox, viewport.getCurrentZoom(), isCoarsePointerEvent(e) ? COARSE_HANDLE_HIT_SCALE : 1)
         : null;
 
       if (hoveredHandle !== currentHoveredHandle.current) {
@@ -541,10 +543,75 @@ export function useTransformMode({
     return { handled: false };
   };
 
+  // Abandon an in-progress transform WITHOUT committing, restoring pre-gesture geometry.
+  // Mirrors the "no movement" reset branches in handleMouseUp — move is offset-only (no geometry
+  // mutation), but resize/rotate mutate strokes in place each preview frame and must be restored
+  // from their snapshot maps. Used when a 2nd finger lands mid-transform (→ pinch/pan).
+  const cancel = () => {
+    // Move: geometry was never touched — the renderer just drew at currentMoveOffset.
+    if (isMoving.current) {
+      isMoving.current = false;
+      moveStartPoint.current = null;
+      moveStartPositions.current = [];
+      currentMoveOffset.current = { x: 0, y: 0 };
+      redrawCanvas();
+      return { handled: true };
+    }
+
+    // Resize: restore each stroke's exact pre-resize state from the snapshot.
+    if (isResizing.current) {
+      const selectedStrokes = getSelectedStrokes();
+      selectedStrokes.forEach((stroke) => {
+        const originalData = resizeStartPoints.current.get(stroke.id);
+        if (!originalData) return;
+        if (stroke.type === 'text') {
+          stroke.x = originalData.x;
+          stroke.y = originalData.y;
+          stroke.fontSize = originalData.fontSize;
+          stroke.config = structuredClone(originalData.config);
+          stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config);
+        } else {
+          stroke.points = [...originalData];
+          stroke.bbox = computeBoundingBox(stroke.points);
+        }
+      });
+      isResizing.current = false;
+      resizeHandle.current = null;
+      resizeStartPoints.current.clear();
+      resizeStartCombinedBbox.current = null;
+      redrawCanvas();
+      return { handled: true };
+    }
+
+    // Rotate: restore each stroke's exact pre-rotation state from the snapshot.
+    if (isRotating.current) {
+      const selectedStrokes = getSelectedStrokes();
+      selectedStrokes.forEach((stroke) => {
+        const originalPoints = rotateStartPoints.current.get(stroke.id);
+        if (!originalPoints) return;
+        if (stroke.type === 'text') {
+          Object.assign(stroke, originalPoints);
+          refreshTextBounds(stroke);
+        } else {
+          stroke.points = [...originalPoints];
+          stroke.bbox = computeBoundingBox(stroke.points);
+        }
+      });
+      isRotating.current = false;
+      rotateStartAngle.current = null;
+      rotateStartPoints.current.clear();
+      redrawCanvas();
+      return { handled: true };
+    }
+
+    return { handled: false };
+  };
+
   return {
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
+    cancel,
     // Export refs for renderer
     isMoving,
     isResizing,

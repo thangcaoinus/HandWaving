@@ -1,5 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
+const MIN_ZOOM = 0.4;
+const MAX_ZOOM = 5;
+const clampZoom = (z) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
+
 export function useViewport(onViewportChange) {
     const zoomRef = useRef(1);
     const panRef = useRef({ x: 0, y: 0 });
@@ -24,26 +28,26 @@ export function useViewport(onViewportChange) {
     const zoomIn = useCallback((cursorX, cursorY, canvasWidth, canvasHeight) => {
         if (cursorX !== undefined && cursorY !== undefined && canvasWidth && canvasHeight) {
             const oldZoom = zoomRef.current;
-            const newZoom = Math.min(oldZoom * 1.2, 5);
-            
+            const newZoom = clampZoom(oldZoom * 1.2);
+
             // Convert cursor screen position to canvas coordinates before zoom
             const centerX = canvasWidth / 2;
             const centerY = canvasHeight / 2;
             const canvasX = (cursorX - centerX - panRef.current.x) / oldZoom;
             const canvasY = (cursorY - centerY - panRef.current.y) / oldZoom;
-            
+
             // Update zoom
             zoomRef.current = newZoom;
-            
+
             // Convert the same canvas point back to screen coordinates with new zoom
             const newScreenX = canvasX * newZoom + centerX + panRef.current.x;
             const newScreenY = canvasY * newZoom + centerY + panRef.current.y;
-            
+
             // Adjust pan to keep cursor position fixed
             panRef.current.x += cursorX - newScreenX;
             panRef.current.y += cursorY - newScreenY;
         } else {
-            zoomRef.current = Math.min(zoomRef.current * 1.2, 5);
+            zoomRef.current = clampZoom(zoomRef.current * 1.2);
         }
         commitViewportState();
     }, [commitViewportState]);
@@ -51,27 +55,57 @@ export function useViewport(onViewportChange) {
     const zoomOut = useCallback((cursorX, cursorY, canvasWidth, canvasHeight) => {
         if (cursorX !== undefined && cursorY !== undefined && canvasWidth && canvasHeight) {
             const oldZoom = zoomRef.current;
-            const newZoom = Math.max(oldZoom / 1.2, 0.4);
-            
+            const newZoom = clampZoom(oldZoom / 1.2);
+
             // Convert cursor screen position to canvas coordinates before zoom
             const centerX = canvasWidth / 2;
             const centerY = canvasHeight / 2;
             const canvasX = (cursorX - centerX - panRef.current.x) / oldZoom;
             const canvasY = (cursorY - centerY - panRef.current.y) / oldZoom;
-            
+
             // Update zoom
             zoomRef.current = newZoom;
-            
+
             // Convert the same canvas point back to screen coordinates with new zoom
             const newScreenX = canvasX * newZoom + centerX + panRef.current.x;
             const newScreenY = canvasY * newZoom + centerY + panRef.current.y;
-            
+
             // Adjust pan to keep cursor position fixed
             panRef.current.x += cursorX - newScreenX;
             panRef.current.y += cursorY - newScreenY;
         } else {
-            zoomRef.current = Math.max(zoomRef.current / 1.2, 0.4);
+            zoomRef.current = clampZoom(zoomRef.current / 1.2);
         }
+        commitViewportState();
+    }, [commitViewportState]);
+
+    // Continuous pinch: zoom around a focal point AND pan by the centroid delta, atomically.
+    // focalX/Y + dCentroidX/Y are canvas-element-relative screen coords/deltas (the pinch midpoint
+    // and how far it moved this frame). curDist/prevDist are the finger spans this/last frame.
+    // We write panRef directly here (not updatePan) so the anchored-zoom correction and the pan
+    // delta don't fight updatePan's ±2000 clamp — matching how zoomIn/zoomOut already mutate pan.
+    const pinchZoom = useCallback((focalX, focalY, dCentroidX, dCentroidY, curDist, prevDist, canvasWidth, canvasHeight) => {
+        const centerX = canvasWidth / 2;
+        const centerY = canvasHeight / 2;
+
+        const oldZoom = zoomRef.current;
+        const ratio = prevDist > 0 ? curDist / prevDist : 1;
+        const newZoom = clampZoom(oldZoom * ratio);
+
+        // Focal point → canvas coords under OLD zoom (using the pan BEFORE the centroid moved).
+        const canvasX = (focalX - centerX - panRef.current.x) / oldZoom;
+        const canvasY = (focalY - centerY - panRef.current.y) / oldZoom;
+
+        zoomRef.current = newZoom;
+
+        // Same canvas point → screen under NEW zoom; the residual keeps the focal point pinned.
+        const newScreenX = canvasX * newZoom + centerX + panRef.current.x;
+        const newScreenY = canvasY * newZoom + centerY + panRef.current.y;
+
+        // Anchored-zoom correction + two-finger pan delta, applied in one shot.
+        panRef.current.x += (focalX - newScreenX) + dCentroidX;
+        panRef.current.y += (focalY - newScreenY) + dCentroidY;
+
         commitViewportState();
     }, [commitViewportState]);
 
@@ -177,6 +211,7 @@ export function useViewport(onViewportChange) {
         getCurrentZoom,
         zoomIn,
         zoomOut,
+        pinchZoom,
         resetViewport,
         fitToScreen,
         screenToCanvas,

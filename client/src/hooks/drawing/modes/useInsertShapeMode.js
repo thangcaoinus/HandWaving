@@ -176,10 +176,40 @@ export function useInsertShapeMode({
     return { handled: true };
   };
 
+  // Discard an in-progress shape without committing (gesture escalated to two fingers).
+  // Preview is local-only (no collaborative broadcast), so just restore the bitmap + clear refs.
+  const cancel = () => {
+    if (!isDrawing.current) {
+      return { handled: false };
+    }
+
+    isDrawing.current = false;
+
+    const ctx = canvasHelpers.getContext();
+    if (ctx && tempCanvasImgRef.current !== null) {
+      canvasHelpers.clearCanvas();
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.putImageData(tempCanvasImgRef.current, 0, 0);
+      ctx.restore();
+      tempCanvasImgRef.current = null;
+    }
+
+    startPoint.current = null;
+    previewShapeRef.current = null;
+    currentStrokeIdRef.current = null;
+    drawnPointsRef.current = [];
+
+    redrawCanvas();
+    return { handled: true };
+  };
+
   return {
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
+    cancel,
+    isDrawing,
   };
 }
 

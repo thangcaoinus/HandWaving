@@ -9,6 +9,7 @@ export const OperationType = {
   STROKE_UNDO: 'STROKE_UNDO',
   STROKE_START: 'STROKE_START',
   STROKE_PROGRESS: 'STROKE_PROGRESS',
+  STROKE_CANCEL: 'STROKE_CANCEL',
   STROKE_RESIZE: 'STROKE_RESIZE',
   STROKE_ROTATE: 'STROKE_ROTATE',
   SELECTION_CHANGE: 'SELECTION_CHANGE',
@@ -82,6 +83,14 @@ export const StrokeProgressPayload = {
   create: (strokeId, point) => ({
     strokeId,
     point
+  })
+};
+
+// Terminal signal for an in-progress stroke that was discarded (e.g. a 2nd finger landed mid-draw).
+// Tells peers to drop the orange preview WITHOUT committing a final stroke.
+export const StrokeCancelPayload = {
+  create: (strokeId) => ({
+    strokeId
   })
 };
 

@@ -246,10 +246,63 @@ export function useSelectMode({
     return { handled: false };
   };
 
+  // Select the top-most object under a point (tap on touch, where there's no Ctrl to individual-select).
+  // additive=false replaces the selection; true toggles like Ctrl+click. Reuses the same hit-test +
+  // ownership rules as handleMouseDown. Returns true if an object was hit.
+  const selectAtPoint = (point, { additive = false } = {}) => {
+    if (!canEditRef.current || !point) return false;
+    const strokesArray = Array.from(allStrokesRef.current.values());
+    let clickedStroke = null;
+    for (let i = strokesArray.length - 1; i >= 0; i--) {
+      const stroke = strokesArray[i];
+      if (!stroke.bbox && stroke.points) {
+        stroke.bbox = computeBoundingBox(stroke.points);
+      }
+      const hit = stroke.type === 'text'
+        ? textContainsPoint(stroke, point)
+        : stroke.bbox && pointInBoundingBox(point, stroke.bbox, 5);
+      if (hit) { clickedStroke = stroke; break; }
+    }
+
+    if (!clickedStroke || !clickedStroke.id) {
+      // Empty tap clears selection (replace mode only), matching desktop click-on-empty.
+      if (!additive) { clearSelection(); redrawCanvas(); }
+      return false;
+    }
+    if (!canSelectStroke(clickedStroke)) return false;
+
+    if (additive) {
+      if (isStrokeSelected(clickedStroke.id)) removeFromSelection(clickedStroke.id);
+      else addToSelection(clickedStroke.id);
+    } else {
+      clearSelection();
+      addToSelection(clickedStroke.id);
+    }
+    redrawCanvas();
+    return true;
+  };
+
+  // Abandon an in-progress marquee/lasso without committing a selection (e.g. gesture escalated
+  // to two fingers). No selection change has happened yet — selection commits only on mouse up.
+  const cancel = () => {
+    if (!isSelecting.current && !isLassoing.current) {
+      return { handled: false };
+    }
+    isSelecting.current = false;
+    isLassoing.current = false;
+    selectionStartPoint.current = null;
+    selectionRectRef.current = null;
+    lassoPoints.current = [];
+    redrawCanvas();
+    return { handled: true };
+  };
+
   return {
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
+    cancel,
+    selectAtPoint,
     // Export refs for renderer to draw selection visuals
     isSelecting,
     isLassoing,

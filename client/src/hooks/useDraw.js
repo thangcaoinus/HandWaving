@@ -17,6 +17,7 @@ import { useSelectMode } from "./drawing/modes/useSelectMode";
 import { useTransformMode } from "./drawing/modes/useTransformMode";
 import { useKeyboardMode } from "./drawing/modes/useKeyboardMode";
 import { useTextMode } from "./drawing/modes/useTextMode";
+import { useGestureArbiter } from "./useGestureArbiter";
 import { computeBoundingBox, translatePoints, pointInBoundingBox } from "../utils/geometry";
 import { drawResizeHandles, drawRotationHandle } from "../utils/handles";
 
@@ -38,6 +39,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
   const hoveredStrokeRef = useRef(null); // Track hovered stroke for tooltip
   const textClickCallbackRef = useRef(null); // Callback for text tool clicks
   const lastMousePosRef = useRef({ x: 0, y: 0 }); // Track last mouse position in canvas coords for paste
+  const lastPointerDownRef = useRef({ t: 0, x: 0, y: 0 }); // Synthesize dblclick for mouse/pen (PointerEvent.detail is always 0)
 
   // Use real user ID if authenticated, otherwise use anonymous ID from room:joined
   const userId = user?.id || myUserInfo?.userId || socket.id || `guest_${Date.now()}`;
@@ -355,6 +357,29 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     canEdit,
   });
 
+  // Touch gesture arbiter — governs multi-touch (pinch/two-finger pan) and tap synthesis, and
+  // feeds single-finger input into the same mouse-era router below. Only touches pointerType 'touch'.
+  const gestureArbiter = useGestureArbiter({
+    canvasRef,
+    viewport,
+    redrawCanvas,
+    canvasHelpers,
+    lastMousePosRef,
+    isSelectMode,
+    isTextMode,
+    // Discard whatever single-finger action is in flight when a 2nd finger lands (mode-agnostic dispatch).
+    abortSingleFingerAction: () => {
+      if (drawMode.isDrawing?.current) { drawMode.abortStroke(); return; }
+      if (insertShapeMode.isDrawing?.current) { insertShapeMode.cancel(); return; }
+      if (transformMode.isMoving?.current || transformMode.isResizing?.current || transformMode.isRotating?.current) {
+        transformMode.cancel(); return;
+      }
+      if (selectMode.isSelecting?.current || selectMode.isLassoing?.current) { selectMode.cancel(); return; }
+    },
+    selectAtPoint: selectMode.selectAtPoint,
+    handleDoubleTap: textMode.handleDoubleClick,
+  });
+
   // Assign functions to refs to break circular dependency
   useEffect(() => {
     redrawCallbackRef.current = redrawCanvas;
@@ -388,8 +413,20 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
         return;
       }
 
-      if ((isSelectMode || isTextMode) && e.detail === 2) {
-        if (textMode.handleDoubleClick(e).handled) return;
+      // Double-click detection. PointerEvent.detail is always 0 (unlike MouseEvent), so for mouse/pen
+      // we synthesize it from the previous pointerdown's time+position. Touch double-tap is handled by
+      // the gesture arbiter (see onPointerUp), so we skip it here to avoid firing twice.
+      if (e.pointerType !== 'touch' && (isSelectMode || isTextMode)) {
+        const now = Date.now();
+        const last = lastPointerDownRef.current;
+        const isDbl = now - last.t < 300 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 6;
+        if (isDbl) {
+          // Reset so the next click starts a fresh pair (native `detail` resets after a dblclick too).
+          lastPointerDownRef.current = { t: 0, x: 0, y: 0 };
+          if (textMode.handleDoubleClick(e).handled) return;
+        } else {
+          lastPointerDownRef.current = { t: now, x: e.clientX, y: e.clientY };
+        }
       }
       if (isTextMode) {
         if (transformMode.handleMouseDown(e).handled) return;
@@ -536,6 +573,38 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
 
     // Keyboard handlers are now provided by keyboardMode
 
+    // Pointer wrappers unify mouse/pen/touch. The arbiter gets first look for touch (pinch/pan/tap);
+    // everything it declines flows into the existing mouse-era router unchanged (mouse/pen too).
+    const handlePointerDown = (e) => {
+      if (gestureArbiter.onPointerDown(e).handled) return;
+      // Keep drags alive if the finger/cursor slides off the canvas element.
+      try { canvas.setPointerCapture?.(e.pointerId); } catch { /* capture is best-effort */ }
+      handleMouseDown(e);
+    };
+
+    const handlePointerMove = (e) => {
+      if (gestureArbiter.onPointerMove(e).handled) return;
+      handleMouseMove(e);
+    };
+
+    // Bound on window (mirrors the old mouseup) so an off-canvas release still completes the action.
+    const handlePointerUp = (e) => {
+      // Router first so it completes its own action (e.g. finishes a stroke / zero-area marquee);
+      // then the arbiter fires tap-select / double-tap-edit, or finalizes a pinch exit.
+      handleMouseUp(e);
+      gestureArbiter.onPointerUp(e);
+      try { canvas.releasePointerCapture?.(e.pointerId); } catch { /* ignore */ }
+    };
+
+    const handlePointerCancel = (e) => {
+      gestureArbiter.onPointerCancel(e);
+      // Abort any single-finger action the router had going (cancel is a no-op if nothing's active).
+      if (drawMode.isDrawing?.current) drawMode.abortStroke();
+      else if (insertShapeMode.isDrawing?.current) insertShapeMode.cancel();
+      else if (transformMode.isMoving?.current || transformMode.isResizing?.current || transformMode.isRotating?.current) transformMode.cancel();
+      else if (selectMode.isSelecting?.current || selectMode.isLassoing?.current) selectMode.cancel();
+    };
+
     const handleContextMenu = (e) => {
       e.preventDefault();
     };
@@ -558,11 +627,12 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     const handleTextEscape = e => { if (e.key === 'Escape') textMode.cancelCreation(); };
     window.addEventListener('keydown', handleTextEscape);
     window.addEventListener('text-fonts-ready', redrawCanvas);
-    canvas.addEventListener("mousedown", handleMouseDown);
-    canvas.addEventListener("mousemove", handleMouseMove);
+    canvas.addEventListener("pointerdown", handlePointerDown);
+    canvas.addEventListener("pointermove", handlePointerMove);
     canvas.addEventListener("contextmenu", handleContextMenu);
     canvas.addEventListener("wheel", handleWheel);
-    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerCancel);
     window.addEventListener("keydown", keyboardMode.handleUndo);
     window.addEventListener("keydown", keyboardMode.handleRedo);
     window.addEventListener("keydown", keyboardMode.handleDeleteSelected);
@@ -574,11 +644,12 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     return () => {
       window.removeEventListener('keydown', handleTextEscape);
       window.removeEventListener('text-fonts-ready', redrawCanvas);
-      canvas.removeEventListener("mousedown", handleMouseDown);
-      canvas.removeEventListener("mousemove", handleMouseMove);
+      canvas.removeEventListener("pointerdown", handlePointerDown);
+      canvas.removeEventListener("pointermove", handlePointerMove);
       canvas.removeEventListener("contextmenu", handleContextMenu);
       canvas.removeEventListener("wheel", handleWheel);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerCancel);
       window.removeEventListener("keydown", keyboardMode.handleUndo);
       window.removeEventListener("keydown", keyboardMode.handleRedo);
       window.removeEventListener("keydown", keyboardMode.handleDeleteSelected);
@@ -601,6 +672,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     selectMode,
     transformMode,
     keyboardMode,
+    gestureArbiter,
     redrawCanvas,
     brushType,
     isSelectMode,

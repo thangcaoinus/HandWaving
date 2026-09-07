@@ -157,6 +157,37 @@ export function useDrawMode({
     return { handled: true };
   };
 
+  // Discard an in-progress stroke WITHOUT committing it (e.g. a 2nd finger landed → pinch/pan).
+  // Restores the pre-stroke bitmap, drops local state, and tells collaborators to clear the preview.
+  const abortStroke = () => {
+    if (!isDrawing.current) {
+      return { handled: false };
+    }
+
+    isDrawing.current = false;
+    prevPoint.current = null;
+    ongoingStrokeRef.current = [];
+
+    const ctx = canvasHelpers.getContext();
+    if (ctx && tempCanvasImgRef.current !== null) {
+      canvasHelpers.clearCanvas();
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.putImageData(tempCanvasImgRef.current, 0, 0);
+      ctx.restore();
+      tempCanvasImgRef.current = null;
+    }
+
+    // Tell peers to drop the orange preview for this stroke (no final stroke will arrive).
+    if (currentRoom && currentStrokeIdRef.current) {
+      operationManager.cancelStroke(currentStrokeIdRef.current);
+    }
+    currentStrokeIdRef.current = null;
+
+    redrawCanvas();
+    return { handled: true };
+  };
+
   const handleMouseUp = () => {
     if (!isDrawing.current) {
       return { handled: false };
@@ -215,5 +246,7 @@ export function useDrawMode({
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
+    abortStroke,
+    isDrawing,
   };
 }

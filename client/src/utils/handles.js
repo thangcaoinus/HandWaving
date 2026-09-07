@@ -28,9 +28,10 @@ export function getHandlePositions(bbox) {
 
 // Detects which handle (if any) is under the mouse cursor.
 // Uses zoom-aware hit testing - handle size scales with zoom level for consistent clickability.
-export function detectHandle(mousePoint, bbox, currentZoom) {
+// hitScale inflates ONLY the hit target (not the drawn handle) so coarse/touch pointers can grab it.
+export function detectHandle(mousePoint, bbox, currentZoom, hitScale = 1) {
   const handles = getHandlePositions(bbox);
-  const effectiveHandleSize = HANDLE_SIZE / currentZoom;
+  const effectiveHandleSize = (HANDLE_SIZE * hitScale) / currentZoom;
   
   // Check rotation handle first (highest priority)
   if (isPointInHandle(mousePoint, handles.rotate, effectiveHandleSize)) {

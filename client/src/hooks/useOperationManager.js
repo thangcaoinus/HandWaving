@@ -17,6 +17,7 @@ import {
   StrokeUndoPayload,
   StrokeStartPayload,
   StrokeProgressPayload,
+  StrokeCancelPayload,
   StrokeResizePayload,
   StrokeRotatePayload,
   BatchAddStrokesPayload,
@@ -145,8 +146,13 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
     },
 
     [OperationType.STROKE_PROGRESS]: () => {
-      // These are handled by useCollaborativeStrokes for remote operations  
+      // These are handled by useCollaborativeStrokes for remote operations
       // Local operations don't need processing here
+    },
+
+    [OperationType.STROKE_CANCEL]: () => {
+      // Handled by useCollaborativeStrokes (drops the remote orange preview).
+      // Local abort is done in useDrawMode; nothing to process here.
     },
 
     [OperationType.STROKE_RESIZE]: (operation) => {
@@ -649,6 +655,17 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
     return executeOperation(operation, true, false, true);
   }, [executeOperation, createOperationWithUser]);
 
+  // Discard an in-progress collaborative stroke — tells peers to drop the orange preview.
+  const cancelStroke = useCallback((strokeId) => {
+    const operation = createOperationWithUser(
+      OperationType.STROKE_CANCEL,
+      StrokeCancelPayload.create(strokeId)
+    );
+
+    // Broadcast-only, never touches the undo stack.
+    return executeOperation(operation, true, false, true);
+  }, [executeOperation, createOperationWithUser]);
+
   const resizeStrokes = useCallback((strokeIds, scaleX, scaleY, anchorPoint, position = null, textOriginals = null, originalBbox = null) => {
     const operation = createOperationWithUser(
       OperationType.STROKE_RESIZE,
@@ -790,6 +807,7 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
     undoStroke,
     startStroke,
     progressStroke,
+    cancelStroke,
     resizeStrokes,
     rotateStrokes,
     addText,

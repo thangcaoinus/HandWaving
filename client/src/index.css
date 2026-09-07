@@ -5,6 +5,16 @@
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+  /* No grey flash on tap; canvas is a full-screen tool, not a document. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Touch hygiene for the full-screen app shell: no pull-to-refresh / rubber-band during finger
+   drags on the canvas, and no long-press iOS callout menu hijacking a drawing gesture. */
+html,
+body {
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
 }
 
 input,
@@ -13,6 +23,7 @@ textarea {
   -webkit-user-select: text;
   -moz-user-select: text;
   -ms-user-select: text;
+  -webkit-touch-callout: default;
 }
 
 /* Hand-drawn wobbly borders */

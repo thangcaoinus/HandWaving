@@ -59,6 +59,14 @@ export function useCollaborativeStrokes(redrawCanvas, operationManager = null) {
           }
           break;
 
+        case OperationType.STROKE_CANCEL:
+          // Discard the orange preview without committing a stroke (aborted mid-draw).
+          remoteOngoingStrokesRef.current.delete(operation.payload.strokeId);
+          requestAnimationFrame(() => {
+            redrawCanvasRef.current();
+          });
+          break;
+
         case OperationType.TEXT_ADD:
         case OperationType.TEXT_EDIT:
         case OperationType.TEXT_DELETE:
