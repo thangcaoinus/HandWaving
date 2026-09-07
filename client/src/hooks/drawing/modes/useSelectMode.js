@@ -1,3 +1,4 @@
+import { textContainsPoint } from '../../../utils/textBbox';
 import { useRef, useEffect } from "react";
 import { simplify } from "../../../utils/simplify";
 import {
@@ -65,6 +66,16 @@ export function useSelectMode({
     const clickPoint = canvasHelpers.getCanvasPoint(e);
     if (!clickPoint) return { handled: false };
 
+    if (!e.ctrlKey) {
+      const text = [...allStrokesRef.current.values()].reverse().find(s => s.type === 'text' && textContainsPoint(s, clickPoint));
+      if (text && canSelectStroke(text)) {
+        clearSelection();
+        addToSelection(text.id);
+        redrawCanvas();
+        return { handled: true };
+      }
+    }
+
     // Handle Ctrl+click to select/deselect individual objects
     if (e.ctrlKey) {
       logger.log('🖱️ Ctrl+click selection - allStrokesRef has:', allStrokesRef.current.size, 'strokes');
@@ -77,7 +88,7 @@ export function useSelectMode({
         if (!stroke.bbox) {
           stroke.bbox = computeBoundingBox(stroke.points);
         }
-        if (pointInBoundingBox(clickPoint, stroke.bbox, 5)) {
+        if (stroke.type === 'text' ? textContainsPoint(stroke, clickPoint) : pointInBoundingBox(clickPoint, stroke.bbox, 5)) {
           clickedStroke = stroke;
           logger.log('✅ Found clicked stroke at index:', i, 'id:', stroke.id);
           break;

@@ -1,5 +1,9 @@
 import jsPDF from "jspdf";
 import { drawLine } from "./draw";
+import { ensureTextRastersReady, peekTextImage } from "./textRasterCache";
+
+// Fixed high supersample bucket for print-quality exported math/text.
+const EXPORT_ZOOM_BUCKET = 2;
 
 function drawStroke(ctx, points, config) {
   if (!points || points.length === 0) return;
@@ -52,7 +56,7 @@ function calculateFullBoundingBox(strokes) {
   };
 }
 
-function createFullCanvas(strokes) {
+async function createFullCanvas(strokes) {
   const bbox = calculateFullBoundingBox(strokes);
 
   const tempCanvas = document.createElement("canvas");
@@ -66,14 +70,22 @@ function createFullCanvas(strokes) {
 
   ctx.translate(-bbox.minX, -bbox.minY);
 
+  // Text is rendered Markdown/KaTeX — warm its rasters (and wait for KaTeX fonts) so
+  // we can drawImage them instead of fillText. This also fixes the old single-fillText
+  // bug that silently dropped every line after the first.
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready; } catch { /* non-fatal */ }
+  }
+  await ensureTextRastersReady(strokes, EXPORT_ZOOM_BUCKET);
+
   strokes.forEach((stroke) => {
     if (stroke.type === 'text') {
-      // Render text object
-      ctx.save();
-      ctx.font = `${stroke.fontSize}px ${stroke.config.fontFamily || 'Comic Sans MS, cursive'}`;
-      ctx.fillStyle = stroke.config.color || '#000000';
-      ctx.fillText(stroke.text, stroke.x, stroke.y);
-      ctx.restore();
+      const color = (stroke.config && stroke.config.color) || '#000000';
+      const raster = peekTextImage(stroke.text, stroke.fontSize, color, EXPORT_ZOOM_BUCKET);
+      if (raster && raster.image) {
+        // Match the on-canvas origin: (x,y) is the first-line anchor, block at y-fontSize.
+        ctx.drawImage(raster.image, stroke.x, stroke.y - stroke.fontSize, raster.w, raster.h);
+      }
     } else {
       // Render regular stroke
       drawStroke(ctx, stroke.points, stroke.config);
@@ -83,15 +95,15 @@ function createFullCanvas(strokes) {
   return tempCanvas;
 }
 
-export function exportToPNG(strokes, filename = "canvas.png") {
+export async function exportToPNG(strokes, filename = "canvas.png") {
   if (!strokes || strokes.length === 0) {
     console.warn("No strokes to export");
     return;
   }
 
   try {
-    const canvas = createFullCanvas(strokes);
-    
+    const canvas = await createFullCanvas(strokes);
+
     canvas.toBlob((blob) => {
       if (!blob) {
         console.error("Failed to create blob from canvas");
@@ -114,14 +126,14 @@ export function exportToPNG(strokes, filename = "canvas.png") {
   }
 }
 
-export function exportToPDF(strokes, filename = "canvas.pdf", options = {}) {
+export async function exportToPDF(strokes, filename = "canvas.pdf", options = {}) {
   if (!strokes || strokes.length === 0) {
     console.warn("No strokes to export");
     return;
   }
 
   try {
-    const canvas = createFullCanvas(strokes);
+    const canvas = await createFullCanvas(strokes);
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     const aspectRatio = canvasWidth / canvasHeight;

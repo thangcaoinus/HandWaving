@@ -8,38 +8,8 @@ import {
   getBboxCenter,
 } from "../../../utils/geometry";
 import { detectHandle, getCursorForHandle } from "../../../utils/handles";
+import { calculateTextBbox, resizeTextBox, ensureTextBox, refreshTextBounds } from "../../../utils/textBbox";
 import { logger } from "../../../utils/logger";
-
-/**
- * Calculate bounding box for multiline text using actual canvas measurement
- */
-function calculateTextBbox(text, x, y, fontSize) {
-  const lines = text.split('\n');
-  const lineHeight = fontSize * 1.2;
-
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  ctx.font = `${fontSize}px Comic Sans MS, cursive`;
-
-  let maxWidth = 0;
-  lines.forEach(line => {
-    if (line.length > 0) {
-      const metrics = ctx.measureText(line);
-      maxWidth = Math.max(maxWidth, metrics.width);
-    }
-  });
-
-  maxWidth += 10;
-
-  const totalHeight = lines.length * lineHeight;
-
-  return {
-    minX: x,
-    maxX: x + maxWidth,
-    minY: y - fontSize,
-    maxY: y + totalHeight - fontSize
-  };
-}
 
 /**
  * Transform mode handler - move, resize, and rotate selected strokes
@@ -107,6 +77,9 @@ export function useTransformMode({
         strokes.push(stroke);
       }
     });
+    allStrokesRef.current.forEach(stroke => {
+      if (stroke.type === 'text' && stroke.attachedTo && selectedStrokeIdsRef.current.has(stroke.attachedTo) && !selectedStrokeIdsRef.current.has(stroke.id)) strokes.push(stroke);
+    });
     return strokes;
   };
 
@@ -149,11 +122,13 @@ export function useTransformMode({
         const selectedStrokes = getSelectedStrokes();
         selectedStrokes.forEach((stroke) => {
           if (stroke.type === 'text') {
+            ensureTextBox(stroke);
             // Store original text data
             resizeStartPoints.current.set(stroke.id, {
               x: stroke.x,
               y: stroke.y,
-              fontSize: stroke.fontSize
+              fontSize: stroke.fontSize,
+              config: structuredClone(stroke.config),
             });
           } else {
             // Store original stroke points
@@ -243,7 +218,7 @@ export function useTransformMode({
 
     // Handle resize preview
     if (isResizing.current && resizeHandle.current) {
-      const ctrlPressed = e.ctrlKey;
+      const ctrlPressed = e.shiftKey;
       const originalCombinedBbox = resizeStartCombinedBbox.current;
 
       if (originalCombinedBbox) {
@@ -258,21 +233,11 @@ export function useTransformMode({
         const selectedStrokes = getSelectedStrokes();
         selectedStrokes.forEach((stroke) => {
           if (stroke.type === 'text') {
-            // Resize text preview
             const originalData = resizeStartPoints.current.get(stroke.id);
             if (originalData) {
-              // Allow position to flip but keep fontSize positive
-              const dx = originalData.x - anchorPoint.x;
-              const dy = originalData.y - anchorPoint.y;
-              stroke.x = anchorPoint.x + dx * scaleX;
-              stroke.y = anchorPoint.y + dy * scaleY;
-
-              // Use absolute scale for fontSize, but allow position to flip
-              const avgScale = Math.max(0.1, Math.abs((scaleX + scaleY) / 2));
-              stroke.fontSize = originalData.fontSize * avgScale;
-
-              // Update bbox using accurate measurement
-              stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize);
+              Object.assign(stroke, structuredClone(originalData));
+              refreshTextBounds(stroke);
+              resizeTextBox(stroke, scaleX, scaleY, anchorPoint);
             }
           } else {
             // Resize stroke preview
@@ -323,7 +288,7 @@ export function useTransformMode({
               stroke.y = center.y + (dx * sin + dy * cos);
 
               // Update bbox using accurate measurement
-              stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize);
+              stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config);
             }
           } else {
             // Rotate stroke preview
@@ -362,7 +327,7 @@ export function useTransformMode({
     return { handled: false };
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e) => {
     // Complete move operation
     if (isMoving.current) {
       if (moveStartPositions.current.length > 0 && currentMoveOffset.current) {
@@ -402,8 +367,8 @@ export function useTransformMode({
 
     // Complete resize operation
     if (isResizing.current) {
-      const currentPoint = canvasHelpers.getCanvasPoint(window.event);
-      const ctrlPressed = window.event?.ctrlKey || false;
+      const currentPoint = canvasHelpers.getCanvasPoint(e);
+      const ctrlPressed = e?.shiftKey || false;
       const originalCombinedBbox = resizeStartCombinedBbox.current;
 
       if (originalCombinedBbox && resizeHandle.current && currentPoint) {
@@ -424,14 +389,26 @@ export function useTransformMode({
               stroke.x = originalData.x;
               stroke.y = originalData.y;
               stroke.fontSize = originalData.fontSize;
+              stroke.config = structuredClone(originalData.config);
 
               // Restore bbox using accurate measurement
-              stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize);
+              stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config);
             } else {
               // Restore original stroke points
               stroke.points = [...originalData];
               stroke.bbox = computeBoundingBox(stroke.points);
             }
+          }
+        });
+
+        // Capture what the op/inverse need BEFORE the teardown clears the refs below.
+        const handlePosition = resizeHandle.current.position;
+        const originalBboxForOp = originalCombinedBbox; // pre-resize bbox for the edge-translate math
+        const textOriginals = {};
+        selectedStrokes.forEach((stroke) => {
+          if (stroke.type === 'text') {
+            const orig = resizeStartPoints.current.get(stroke.id);
+            if (orig) textOriginals[stroke.id] = structuredClone(orig);
           }
         });
 
@@ -443,14 +420,17 @@ export function useTransformMode({
 
         // Only create operation if there was actual resize
         if (Math.abs(scaleX - 1) > 0.01 || Math.abs(scaleY - 1) > 0.01) {
-          const strokeIds = Array.from(selectedStrokeIdsRef.current);
+          const strokeIds = selectedStrokes.map(s => s.id);
 
           if (strokeIds.length > 0) {
             operationManager.resizeStrokes(
               strokeIds,
               scaleX,
               scaleY,
-              anchorPoint
+              anchorPoint,
+              handlePosition,
+              textOriginals,
+              originalBboxForOp
             );
           }
         }
@@ -465,9 +445,10 @@ export function useTransformMode({
               stroke.x = originalData.x;
               stroke.y = originalData.y;
               stroke.fontSize = originalData.fontSize;
+              stroke.config = structuredClone(originalData.config);
 
               // Restore bbox using accurate measurement
-              stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize);
+              stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config);
             } else {
               // Restore original stroke points
               stroke.points = [...originalData];
@@ -487,7 +468,7 @@ export function useTransformMode({
 
     // Complete rotate operation
     if (isRotating.current) {
-      const currentPoint = canvasHelpers.getCanvasPoint(window.event);
+      const currentPoint = canvasHelpers.getCanvasPoint(e);
       const combinedBbox = getCombinedBoundingBox();
 
       if (combinedBbox && currentPoint) {
@@ -504,8 +485,13 @@ export function useTransformMode({
         selectedStrokes.forEach((stroke) => {
           const originalPoints = rotateStartPoints.current.get(stroke.id);
           if (originalPoints) {
-            stroke.points = [...originalPoints];
-            stroke.bbox = computeBoundingBox(stroke.points);
+            if (stroke.type === 'text') {
+              Object.assign(stroke, originalPoints);
+              refreshTextBounds(stroke);
+            } else {
+              stroke.points = [...originalPoints];
+              stroke.bbox = computeBoundingBox(stroke.points);
+            }
           }
         });
 
@@ -517,7 +503,7 @@ export function useTransformMode({
 
         // Only create operation if there was actual rotation
         if (Math.abs(angleDelta) > 0.01) {
-          const strokeIds = Array.from(selectedStrokeIdsRef.current);
+          const strokeIds = selectedStrokes.map(s => s.id);
 
           if (strokeIds.length > 0) {
             operationManager.rotateStrokes(
@@ -534,8 +520,13 @@ export function useTransformMode({
         selectedStrokes.forEach((stroke) => {
           const originalPoints = rotateStartPoints.current.get(stroke.id);
           if (originalPoints) {
-            stroke.points = [...originalPoints];
-            stroke.bbox = computeBoundingBox(stroke.points);
+            if (stroke.type === 'text') {
+              Object.assign(stroke, originalPoints);
+              refreshTextBounds(stroke);
+            } else {
+              stroke.points = [...originalPoints];
+              stroke.bbox = computeBoundingBox(stroke.points);
+            }
           }
         });
 

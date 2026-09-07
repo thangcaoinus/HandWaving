@@ -4,6 +4,8 @@ import { BrowserRouter } from 'react-router-dom'
 import '@fontsource/patrick-hand/400.css'
 import '@fontsource-variable/nunito'
 import './output.css'
+// KaTeX math styles + fonts — needed by both the offscreen text measurer and the SVG rasterizer
+import 'katex/dist/katex.min.css'
 import App from './App.jsx'
 import { AuthProvider } from './contexts/AuthContext'
 

@@ -1,182 +1,61 @@
-import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { renderToHtml, TEXT_CONTENT_CSS } from '../../utils/markdownRenderer';
+import { getTextLayout, textLayoutCss } from '../../utils/textBbox';
 
-/**
- * Sanitize text input to prevent XSS attacks
- * Simple character-based approach with length limit (no ReDoS risk)
- */
-function sanitizeText(text) {
-  if (!text) return '';
-
-  // Hard limit to prevent DoS (10,000 chars = ~2000 words)
-  if (text.length > 10000) {
-    text = text.substring(0, 10000);
-  }
-
-  // Simple character-by-character filtering (no regex)
-  // Remove dangerous characters that could enable XSS
-  let result = '';
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    // Allow printable chars, newlines, tabs, but block <, >, & for HTML safety
-    if (char === '<' || char === '>' || char === '&') {
-      continue; // Skip these characters
-    }
-    result += char;
-  }
-
-  return result;
-}
-
-/**
- * Inline text editor that appears at the text position on canvas
- * PowerPoint-style bbox editing with multiline support
- */
-const InlineTextEditor = forwardRef(function InlineTextEditor({
-  text = '',
-  x,
-  y,
-  fontSize,
-  color,
-  onSubmit,
-  onCancel,
-  onChange,
-  onBlurStart, // Called immediately when blur starts (before submit delay)
-  zoom = 1
-}, ref) {
-  const [value, setValue] = useState(text);
+const InlineTextEditor = forwardRef(function InlineTextEditor({ object, x, y, zoom, conflict, onChange, onSubmit, onCancel }, ref) {
   const inputRef = useRef(null);
-  const [inputWidth, setInputWidth] = useState(Math.max(200, text.length * fontSize * 0.6));
-  const hasFocusedRef = useRef(false);
-
-  // Expose blur method to parent via ref
-  useImperativeHandle(ref, () => ({
-    blur: () => {
-      if (inputRef.current) {
-        inputRef.current.blur();
-      }
-    }
-  }), []);
-
+  const previewRef = useRef(null);
+  const layout = getTextLayout(object.text, object.fontSize, object.config);
+  useImperativeHandle(ref, () => ({ blur: () => onSubmit(false) }), [onSubmit]);
   useEffect(() => {
-    // Auto-focus and select all on mount - delay to avoid blur from canvas click
-    const timer = setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-        hasFocusedRef.current = true;
-        if (text) {
-          inputRef.current.select();
-        }
-      }
-    }, 50);
-    return () => clearTimeout(timer);
-  }, [text]);
-
+    inputRef.current?.focus();
+    inputRef.current?.setSelectionRange(object.text.length, object.text.length);
+    // Focus once per editing session; formatting must preserve the caret.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [object.id]);
   useEffect(() => {
-    // Auto-resize textarea width and height based on content
-    if (inputRef.current && value) {
-      const textarea = inputRef.current;
-
-      // Reset height to calculate scrollHeight properly
-      textarea.style.height = 'auto';
-
-      // Set height based on content
-      textarea.style.height = `${textarea.scrollHeight}px`;
-
-      // Calculate width based on longest line
-      const lines = value.split('\n');
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      ctx.font = `${fontSize}px Comic Sans MS, cursive`;
-
-      let maxWidth = 200;
-      lines.forEach(line => {
-        const metrics = ctx.measureText(line);
-        maxWidth = Math.max(maxWidth, metrics.width + 20);
-      });
-
-      setInputWidth(Math.min(600, maxWidth)); // Cap at 600px
-    }
-  }, [value, fontSize]);
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      // Ctrl+Enter or Cmd+Enter to submit
-      e.preventDefault();
-      handleSubmit();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      onCancel();
-    }
-    // Regular Enter adds new line (no special handling needed)
-  };
-
-  const handleSubmit = () => {
-    const trimmed = value.trim();
-    if (trimmed) {
-      onSubmit(sanitizeText(trimmed));
-    } else {
-      onCancel(); // Cancel if empty
-    }
-  };
-
-  const handleBlur = (e) => {
-    // Only submit if we've actually focused the input (prevents immediate blur from canvas click)
-    if (!hasFocusedRef.current) {
-      return;
-    }
-
-    // Immediately signal that blur started (before the submit delay)
-    // This prevents the canvas click that triggered blur from opening a new editor
-    if (onBlurStart) {
-      onBlurStart();
-    }
-
-    // Submit immediately (no delay needed - onBlurStart already prevents reopening)
-    handleSubmit();
-  };
-
-  const handleChange = (e) => {
-    const rawValue = e.target.value;
-    const sanitized = sanitizeText(rawValue);
-    setValue(sanitized);
-    if (onChange) {
-      onChange(sanitized);
-    }
-  };
-
-  return (
-    <textarea
-      ref={inputRef}
-      value={value}
-      onChange={handleChange}
-      onKeyDown={handleKeyDown}
-      onBlur={handleBlur}
-      rows={1}
-      style={{
-        position: 'absolute',
-        left: `${x}px`,
-        top: `${y - fontSize}px`, // Position above baseline
-        minWidth: '200px',
-        maxWidth: '600px',
-        width: `${inputWidth}px`,
-        fontSize: `${fontSize * zoom}px`,
-        fontFamily: 'Comic Sans MS, cursive',
-        color: color,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        border: '2px solid var(--coral)',
-        borderRadius: '4px',
-        padding: '4px 6px',
-        outline: 'none',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-        zIndex: 10000,
-        transform: `scale(${1/zoom})`, // Counteract zoom
-        transformOrigin: 'top left',
-        resize: 'none',
-        overflow: 'hidden',
-        lineHeight: '1.2',
-      }}
-    />
-  );
+    if (previewRef.current) previewRef.current.style.cssText = textLayoutCss(layout.effectiveFontSize, object.config.textBox) + `color:${object.config.color};`;
+  }, [object.config, layout.effectiveFontSize]);
+  useEffect(() => {
+    const outside = event => {
+      if (!event.target.closest('[data-text-edit-session]') && event.target.tagName !== 'CANVAS') onSubmit(false);
+    };
+    document.addEventListener('pointerdown', outside, true);
+    return () => document.removeEventListener('pointerdown', outside, true);
+  }, [onSubmit]);
+  const panelWidth = Math.min(340, window.innerWidth - 32);
+  const panelX = Math.max(16, Math.min(window.innerWidth - panelWidth - 16, x + layout.width * zoom + 16));
+  const panelY = Math.max(80, Math.min(window.innerHeight - 290, y));
+  return <>
+    <style>{TEXT_CONTENT_CSS}</style>
+    <div aria-hidden="true" style={{ position: 'fixed', left: x, top: y, width: layout.width * zoom,
+      height: layout.height * zoom, outline: '2px solid var(--coral)', pointerEvents: 'none', zIndex: 11 }}>
+      <div style={{ position: 'absolute', top: layout.offsetY * zoom, transform: `scale(${zoom})`, transformOrigin: 'top left', background: 'var(--paper)' }}>
+        <div ref={previewRef} className="hw-md" dangerouslySetInnerHTML={{ __html: renderToHtml(object.text) }} />
+      </div>
+    </div>
+    <div data-text-edit-session className="paper-card sketch-panel border-2 border-[color:var(--coral)] p-3"
+      style={{ position: 'fixed', left: panelX, top: panelY, width: panelWidth, zIndex: 30 }}
+      onKeyDown={e => {
+        e.stopPropagation();
+        if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); onSubmit(false); }
+      }}>
+      <label htmlFor="text-box-source" className="font-display text-lg">Text box</label>
+      <p className="text-xs text-[color:var(--ink-soft)] mb-2">Markdown and $math$ · Preview on canvas</p>
+      <textarea id="text-box-source" ref={inputRef} value={object.text} maxLength={10000}
+        onChange={e => onChange(e.target.value)} spellCheck={false}
+        className="w-full border rounded p-2 bg-white text-[color:var(--ink)]"
+        style={{ fontFamily: 'ui-monospace, monospace', fontSize: 14, height: 150, resize: 'vertical' }} />
+      {conflict ? <div role="alert" className="text-sm mt-2">
+        <p>A collaborator changed this box while you were editing.</p>
+        <button className="sketch-button p-2" onClick={() => onSubmit(true)}>Keep my version</button>
+        <button className="sketch-button p-2" onClick={onCancel}>Use their version</button>
+      </div> : <div className="flex justify-between items-center mt-2 text-xs">
+        <span>Ctrl/⌘ + Enter to save</span>
+        <button className="sketch-button px-3 py-1" onClick={() => onSubmit(false)}>Done</button>
+      </div>}
+    </div>
+  </>;
 });
-
 export default InlineTextEditor;

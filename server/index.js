@@ -1,3 +1,4 @@
+import { validTextState } from '../shared/textBox.js';
 // Socket.IO server - handles real-time collaboration with room management and operation broadcasting.
 // Room lifecycle: join with auth/invite token → load canvas from DB → broadcast as operations → cleanup on disconnect.
 
@@ -267,12 +268,12 @@ io.on("connection", (socket) => {
         if (canvas?.data?.strokes) {
           // Convert strokes to STROKE_ADD operations for room sync
           initialOperations = canvas.data.strokes.map(stroke => ({
-            type: 'STROKE_ADD',
+            type: stroke.type === 'text' ? 'TEXT_ADD' : 'STROKE_ADD',
             id: crypto.randomUUID(),
             timestamp: Date.now(),
             userId: stroke.userId || 'system',
             username: stroke.username || 'System',
-            payload: {
+            payload: stroke.type === 'text' ? { textId: stroke.id, text: stroke.text, x: stroke.x, y: stroke.y, fontSize: stroke.fontSize, config: stroke.config, attachedTo: stroke.attachedTo } : {
               strokeId: stroke.id,
               points: stroke.points,
               config: stroke.config
@@ -392,7 +393,11 @@ io.on("connection", (socket) => {
       return;
     }
 
-    // Sanitize text operations (prevent XSS and DoS)
+    // Text operations carry RAW Markdown/LaTeX source. We deliberately do NOT strip
+    // <, >, & anymore — they're meaningful (inequalities, matrix/align `&` separators,
+    // escapes) and stripping them corrupts math. XSS is prevented at client render time
+    // (markdown-it html:false escapes raw HTML; KaTeX trust:false blocks \href js:).
+    // Server keeps only the type guard + a length cap as a DoS guard.
     if (operation.type === 'TEXT_ADD' || operation.type === 'TEXT_EDIT') {
       const textField = operation.type === 'TEXT_ADD' ? 'text' : 'newText';
       let text = operation.payload[textField];
@@ -405,17 +410,17 @@ io.on("connection", (socket) => {
         return;
       }
 
-      // Length limit (10,000 chars)
+      // Length limit (10,000 chars) — DoS guard only
       if (text.length > 10000) {
         text = text.substring(0, 10000);
+        operation.payload[textField] = text;
       }
-
-      // Remove dangerous HTML characters
-      text = text.replace(/[<>&]/g, '');
-
-      // Update the operation with sanitized text
-      operation.payload[textField] = text;
     }
+
+    if (operation.type === 'TEXT_UPDATE' &&
+        (!Array.isArray(operation.payload?.updates) || !operation.payload.updates.length || operation.payload.updates.length > 5000 ||
+         !operation.payload.updates.every(u => u && typeof u.textId === 'string' && validTextState(u.after) && validTextState(u.before)))) return;
+    if (operation.type === 'TEXT_ADD' && !validTextState(operation.payload)) return;
 
     const room = rooms.get(roomId);
     if (!room) {
@@ -423,6 +428,13 @@ io.on("connection", (socket) => {
         canvasId: logger.sanitizeId(roomId)
       });
       return;
+    }
+
+    if (['TEXT_ADD', 'TEXT_EDIT', 'TEXT_DELETE', 'TEXT_UPDATE'].includes(operation.type)) {
+      const member = room.users.get(socket.id);
+      if (!member || member.role === 'VIEWER') return;
+      operation.userId = member.userId;
+      operation.username = member.username;
     }
 
     // Handle operation based on type
@@ -463,6 +475,7 @@ io.on("connection", (socket) => {
       case 'STROKE_ROTATE':
       case 'BATCH_ADD_STROKES':
       case 'BATCH_DELETE_STROKES':
+      case 'TEXT_UPDATE':
       case 'TEXT_ADD':
       case 'TEXT_EDIT':
       case 'TEXT_DELETE':

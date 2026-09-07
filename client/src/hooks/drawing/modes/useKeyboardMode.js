@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 import { generateUniqueId } from "../../../utils/idGenerator";
-import { translatePoints, computeBoundingBox } from "../../../utils/geometry";
+import { translatePoints } from "../../../utils/geometry";
 import { logger } from "../../../utils/logger";
 
 /**
@@ -189,7 +189,7 @@ export function useKeyboardMode({
             x: stroke.x,
             y: stroke.y,
             fontSize: stroke.fontSize,
-            config: { ...stroke.config },
+            config: structuredClone(stroke.config),
             attachedTo: stroke.attachedTo, // Preserve attachment for now
             originalId: strokeId, // Store original ID to remap attachments later
             bbox: { ...stroke.bbox }
@@ -202,7 +202,7 @@ export function useKeyboardMode({
         } else {
           copiedStrokesRef.current.push({
             points: stroke.points.map(p => ({ ...p })),
-            config: { ...stroke.config },
+            config: structuredClone(stroke.config),
             bbox: stroke.bbox ? { ...stroke.bbox } : null,
             originalId: strokeId
           });
@@ -226,7 +226,7 @@ export function useKeyboardMode({
                 x: potentialText.x,
                 y: potentialText.y,
                 fontSize: potentialText.fontSize,
-                config: { ...potentialText.config },
+                config: structuredClone(potentialText.config),
                 attachedTo: strokeId, // Keep attachment to this shape
                 originalId: textId,
                 bbox: { ...potentialText.bbox }
@@ -299,7 +299,7 @@ export function useKeyboardMode({
           x: copiedStroke.x + offsetX,
           y: copiedStroke.y + offsetY,
           fontSize: copiedStroke.fontSize,
-          config: { ...copiedStroke.config },
+          config: structuredClone(copiedStroke.config),
           attachedTo: newAttachedTo,
           bbox: {
             minX: copiedStroke.bbox.minX + offsetX,
@@ -314,7 +314,7 @@ export function useKeyboardMode({
         return {
           id: newId,
           points: translatedPoints,
-          config: { ...copiedStroke.config },
+          config: structuredClone(copiedStroke.config),
           bbox: copiedStroke.bbox ? {
             minX: copiedStroke.bbox.minX + offsetX,
             maxX: copiedStroke.bbox.maxX + offsetX,

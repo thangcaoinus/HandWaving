@@ -1,35 +1,67 @@
 import { useCallback } from "react";
+import { getTextImage } from "../../utils/textRasterCache";
+import { getTextLayout, refreshTextBounds } from '../../utils/textBbox';
+import { useCanvasContext } from '../../contexts/CanvasContext';
 import { logger } from "../../utils/logger";
 
 /**
  * Centralized canvas rendering logic
  * Handles the complex orchestration of drawing all layers in correct order
  */
+
 /**
- * Render multiline text on canvas
+ * Render a text object (Markdown + KaTeX) onto the canvas.
+ *
+ * Text is no longer fillText'd — it's rendered to an image (source -> HTML -> SVG ->
+ * <img>) and cached. We draw the cached raster at the block's top-left (x, y-fontSize).
+ * On a cache miss the image isn't ready yet, so we draw a faint placeholder and let the
+ * cache call triggerRedraw when it decodes.
+ *
+ * `atX/atY` let move-previews draw the same cached image at an offset without re-rastering.
  */
-function renderMultilineText(ctx, text, x, y, fontSize, color) {
-  const lines = text.split('\n');
-  const lineHeight = fontSize * 1.2; // Same as textarea
+function renderTextObject(ctx, stroke, currentZoom, triggerRedraw, atX, atY) {
+  if (!stroke.text || !stroke.fontSize) return;
+  const x = atX ?? stroke.x;
+  const y = atY ?? stroke.y;
+  const color = (stroke.config && stroke.config.color) || '#000000';
 
-  ctx.save();
-  ctx.font = `${fontSize}px Comic Sans MS, cursive`;
-  ctx.fillStyle = color || '#000000';
+  const { image, w, h, ready, failed } = getTextImage(
+    { text: stroke.text, fontSize: stroke.fontSize, color, zoom: currentZoom, config: stroke.config },
+    triggerRedraw
+  );
 
-  lines.forEach((line, index) => {
-    ctx.fillText(line, x, y + (index * lineHeight));
-  });
+  const layout = getTextLayout(stroke.text, stroke.fontSize, stroke.config);
+  const top = y - stroke.fontSize + layout.offsetY; // (x,y) is the first-line anchor; block grows downward
 
-  ctx.restore();
+  if (ready && image) {
+    ctx.drawImage(image, x, top, w, h);
+  } else if (failed) {
+    // Rasterization gave up (repeated decode failures). Draw the raw source as plain text so
+    // the content is at least readable — never leave a permanent grey blob.
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.font = `${stroke.fontSize}px Nunito, system-ui, sans-serif`;
+    ctx.textBaseline = 'top';
+    stroke.text.split('\n').forEach((line, i) => {
+      ctx.fillText(line, x, top + i * stroke.fontSize * 1.2);
+    });
+    ctx.restore();
+  } else {
+    // Faint placeholder so a big formula doesn't flash empty before its raster decodes.
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+    ctx.fillRect(x, top, w, h);
+    ctx.restore();
+  }
 }
 
 export function useCanvasRenderer({
   canvasRef,
   viewport,
   drawCallback,
-  showGrid,
   drawGrid,
   canvasHelpers,
+  redrawCallbackRef, // set by useDraw to redrawCanvas; used to repaint when a text raster decodes
   // Stroke refs
   allStrokesRef,
   ongoingStrokeRef,
@@ -39,8 +71,6 @@ export function useCanvasRenderer({
   // Mode state refs
   isSelecting,
   isMoving,
-  isResizing,
-  isRotating,
   isLassoing,
   selectionStartPoint,
   lassoPoints,
@@ -53,7 +83,6 @@ export function useCanvasRenderer({
   drawBoundingBox,
   drawLassoPath,
   // Utility functions
-  isStrokeSelected,
   getCombinedBoundingBox,
   // Transform utilities
   translatePoints,
@@ -61,7 +90,9 @@ export function useCanvasRenderer({
   drawRotationHandle,
   computeBoundingBox,
 }) {
+  const { textDraftRef, textCreationRef, notifyCanvasChange } = useCanvasContext();
   const redrawCanvas = useCallback(() => {
+    notifyCanvasChange();
     // Step 1: Clear canvas
     canvasHelpers.clearCanvas();
 
@@ -77,6 +108,10 @@ export function useCanvasRenderer({
     // Step 3: Get current zoom
     const currentZoom = viewport.getCurrentZoom();
 
+    // Repaint hook for async text rasters: when a KaTeX/Markdown image finishes
+    // decoding, the cache calls this to redraw the frame with the crisp raster.
+    const triggerRedraw = () => redrawCallbackRef?.current?.();
+
     // Step 4: Draw grid if enabled
     if (drawGrid) {
       drawGrid(ctx, canvas, currentZoom);
@@ -84,6 +119,8 @@ export function useCanvasRenderer({
 
     // Step 5 & 6: Draw all strokes and text from unified storage (exclude selected if moving)
     allStrokesRef.current.forEach((stroke) => {
+      if (stroke.type === 'text') refreshTextBounds(stroke);
+      if (textDraftRef.current?.object.id === stroke.id) return;
       // Skip selected strokes if we're moving them (they'll be drawn with preview)
       if (isMoving.current && selectedStrokeIdsRef.current.has(stroke.id)) {
         return;
@@ -98,10 +135,8 @@ export function useCanvasRenderer({
       }
 
       if (stroke.type === 'text') {
-        // Draw text object (multiline support)
-        if (stroke.text && stroke.fontSize) {
-          renderMultilineText(ctx, stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config.color);
-        }
+        // Draw text object as rendered Markdown/KaTeX raster
+        renderTextObject(ctx, stroke, currentZoom, triggerRedraw);
       } else if (stroke.points && Array.isArray(stroke.points)) {
         // Draw regular stroke
         const { points, config } = stroke;
@@ -110,6 +145,21 @@ export function useCanvasRenderer({
         }
       }
     });
+
+    const draft = textDraftRef.current?.object;
+    if (draft) {
+      refreshTextBounds(draft);
+      renderTextObject(ctx, draft, currentZoom, triggerRedraw);
+    }
+    const outline = textCreationRef.current || draft?.bbox;
+    if (outline) {
+      ctx.save();
+      ctx.strokeStyle = '#f08080';
+      ctx.lineWidth = 1 / currentZoom;
+      ctx.setLineDash([5 / currentZoom, 4 / currentZoom]);
+      ctx.strokeRect(outline.minX, outline.minY, outline.maxX - outline.minX, outline.maxY - outline.minY);
+      ctx.restore();
+    }
 
     // Step 8: Draw remote ongoing strokes (orange previews)
     if (drawRemoteOngoingStrokesRef.current) {
@@ -173,15 +223,15 @@ export function useCanvasRenderer({
           selectedStrokeIdsRef.current.forEach(strokeId => {
             const stroke = allStrokesRef.current.get(strokeId);
             if (stroke) {
-              if (stroke.type === 'text' && stroke.text && stroke.fontSize) {
-                // Draw moved text (multiline support)
-                renderMultilineText(
+              if (stroke.type === 'text') {
+                // Draw moved text at offset (reuses the cached raster, no re-render)
+                renderTextObject(
                   ctx,
-                  stroke.text,
+                  stroke,
+                  currentZoom,
+                  triggerRedraw,
                   stroke.x + currentMoveOffset.current.x,
-                  stroke.y + currentMoveOffset.current.y,
-                  stroke.fontSize,
-                  stroke.config.color
+                  stroke.y + currentMoveOffset.current.y
                 );
               } else if (stroke.points && Array.isArray(stroke.points)) {
                 // Draw moved stroke
@@ -210,16 +260,14 @@ export function useCanvasRenderer({
                 selectedStrokeIdsRef.current.has(textStroke.attachedTo) &&
                 !selectedStrokeIdsRef.current.has(textStroke.id)) { // Not already drawn above
 
-              if (textStroke.text && textStroke.fontSize) {
-                renderMultilineText(
-                  ctx,
-                  textStroke.text,
-                  textStroke.x + currentMoveOffset.current.x,
-                  textStroke.y + currentMoveOffset.current.y,
-                  textStroke.fontSize,
-                  textStroke.config.color
-                );
-              }
+              renderTextObject(
+                ctx,
+                textStroke,
+                currentZoom,
+                triggerRedraw,
+                textStroke.x + currentMoveOffset.current.x,
+                textStroke.y + currentMoveOffset.current.y
+              );
             }
           });
 
@@ -279,13 +327,14 @@ export function useCanvasRenderer({
       }
     }
   }, [
+    notifyCanvasChange, textCreationRef, textDraftRef,
     canvasHelpers,
     canvasRef,
     viewport,
     drawCallback,
     drawGrid,
-    showGrid,
-    // Refs are stable and shouldn't be in deps, but keeping for linter
+      // Refs are stable and shouldn't be in deps, but keeping for linter
+    redrawCallbackRef,
     allStrokesRef,
     ongoingStrokeRef,
     selectedStrokeIdsRef,
@@ -293,9 +342,7 @@ export function useCanvasRenderer({
     hoveredStrokeRef,
     isSelecting,
     isMoving,
-    isResizing,
-    isRotating,
-    isLassoing,
+        isLassoing,
     selectionStartPoint,
     lassoPoints,
     currentMoveOffset,
@@ -305,8 +352,7 @@ export function useCanvasRenderer({
     drawSelectionRectangle,
     drawBoundingBox,
     drawLassoPath,
-    isStrokeSelected,
-    getCombinedBoundingBox,
+      getCombinedBoundingBox,
     translatePoints,
     drawResizeHandles,
     drawRotationHandle,

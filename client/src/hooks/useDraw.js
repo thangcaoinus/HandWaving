@@ -170,7 +170,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     let maxY = -Infinity;
 
     canvas.selectedStrokeIdsRef.current.forEach((strokeId) => {
-      const stroke = canvas.allStrokesRef.current.get(strokeId);
+      const stroke = canvas.textDraftRef.current?.object.id === strokeId ? canvas.textDraftRef.current.object : canvas.allStrokesRef.current.get(strokeId);
       if (stroke) {
         if (!stroke.bbox) {
           stroke.bbox = computeBoundingBox(stroke.points);
@@ -237,7 +237,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     canvasRef,
     canvasHelpers,
     viewport,
-    isSelectMode,
+    isSelectMode: isSelectMode || isTextMode,
     selectedStrokeIdsRef: canvas.selectedStrokeIdsRef,
     allStrokesRef: canvas.allStrokesRef,
     operationManager,
@@ -270,6 +270,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     showGrid,
     drawGrid,
     canvasHelpers,
+    redrawCallbackRef, // lets async text rasters trigger a repaint when they decode
     // Stroke refs
     allStrokesRef: canvas.allStrokesRef,
     ongoingStrokeRef: canvas.ongoingStrokeRef,
@@ -342,7 +343,8 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
   const textMode = useTextMode({
     canvasHelpers,
     operationManager,
-    brushSettings,
+    textDefaults: appState.textDefaults,
+    redrawCanvas,
     allStrokesRef: canvas.allStrokesRef,
     onTextClick: (textPosition) => {
       // Callback will be set from CanvasBoard via setTextClickCallback
@@ -356,9 +358,10 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
   // Assign functions to refs to break circular dependency
   useEffect(() => {
     redrawCallbackRef.current = redrawCanvas;
+    canvas.redrawRef.current = redrawCanvas;
     drawRemoteOngoingStrokesRef.current = drawRemoteOngoingStrokes;
     drawUserCursorsRef.current = drawUserCursors;
-  }, [redrawCanvas, drawRemoteOngoingStrokes, drawUserCursors]);
+  }, [redrawCanvas, drawRemoteOngoingStrokes, drawUserCursors, canvas.redrawRef]);
 
   useEffect(() => {
     redrawCanvas();
@@ -372,6 +375,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
       // This ensures clicking away from the editor properly saves the text
       if (textEditorRef?.current) {
         textEditorRef.current.blur();
+        return;
       }
 
       // Check pan mode first (highest priority)
@@ -384,6 +388,12 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
         return;
       }
 
+      if ((isSelectMode || isTextMode) && e.detail === 2) {
+        if (textMode.handleDoubleClick(e).handled) return;
+      }
+      if (isTextMode) {
+        if (transformMode.handleMouseDown(e).handled) return;
+      }
       if (isSelectMode) {
         // Check transform mode first (move/resize/rotate)
         const transformResult = transformMode.handleMouseDown(e);
@@ -432,6 +442,9 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
         }
 
         // Then handle transform operations (move/resize/rotate) and cursor updates
+        transformMode.handleMouseMove(e);
+      } else if (isTextMode) {
+        if (textMode.handleMouseMove(e).handled) return;
         transformMode.handleMouseMove(e);
       } else if (isInsertShapeMode) {
         // Insert shape mode - delegate to insertShapeMode
@@ -483,13 +496,17 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
       }
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (e) => {
       // Check pan mode first
       const panResult = panMode.handleMouseUp();
       if (panResult.handled) {
         return;
       }
 
+      if (isTextMode) {
+        if (textMode.handleMouseUp(e).handled) return;
+        if (transformMode.handleMouseUp(e).handled) return;
+      }
       if (isSelectMode) {
         // Check select mode first for lasso/rectangle selection completion
         const selectResult = selectMode.handleMouseUp();
@@ -498,7 +515,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
         }
 
         // Then handle transform operations (move/resize/rotate)
-        const transformResult = transformMode.handleMouseUp();
+        const transformResult = transformMode.handleMouseUp(e);
         if (transformResult.handled) {
           return;
         }
@@ -538,6 +555,9 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
       redrawCanvas();
     };
 
+    const handleTextEscape = e => { if (e.key === 'Escape') textMode.cancelCreation(); };
+    window.addEventListener('keydown', handleTextEscape);
+    window.addEventListener('text-fonts-ready', redrawCanvas);
     canvas.addEventListener("mousedown", handleMouseDown);
     canvas.addEventListener("mousemove", handleMouseMove);
     canvas.addEventListener("contextmenu", handleContextMenu);
@@ -552,6 +572,8 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     window.addEventListener("keydown", keyboardMode.handlePaste);
 
     return () => {
+      window.removeEventListener('keydown', handleTextEscape);
+      window.removeEventListener('text-fonts-ready', redrawCanvas);
       canvas.removeEventListener("mousedown", handleMouseDown);
       canvas.removeEventListener("mousemove", handleMouseMove);
       canvas.removeEventListener("contextmenu", handleContextMenu);
@@ -566,6 +588,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
       window.removeEventListener("keydown", keyboardMode.handlePaste);
     };
   }, [
+    textEditorRef,
     canvasRef,
     drawCallback,
     viewport,

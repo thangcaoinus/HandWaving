@@ -1,3 +1,4 @@
+import { validTextState } from '../../../shared/textBox';
 import { generateUniqueId } from './idGenerator';
 
 // Operation types enum
@@ -13,6 +14,7 @@ export const OperationType = {
   SELECTION_CHANGE: 'SELECTION_CHANGE',
   BATCH_ADD_STROKES: 'BATCH_ADD_STROKES',
   BATCH_DELETE_STROKES: 'BATCH_DELETE_STROKES',
+  TEXT_UPDATE: 'TEXT_UPDATE',
   TEXT_ADD: 'TEXT_ADD',
   TEXT_EDIT: 'TEXT_EDIT',
   TEXT_DELETE: 'TEXT_DELETE',
@@ -84,11 +86,16 @@ export const StrokeProgressPayload = {
 };
 
 export const StrokeResizePayload = {
-  create: (strokeIds, scaleX, scaleY, anchorPoint) => ({
+  // Text snapshots include box configuration so undo restores clamped geometry exactly.
+  create: (strokeIds, scaleX, scaleY, anchorPoint, position = null, textOriginals = null, restoreText = false, originalBbox = null) => ({
     strokeIds,
     scaleX,
     scaleY,
-    anchorPoint
+    anchorPoint,
+    position,
+    textOriginals,
+    restoreText,
+    originalBbox
   })
 };
 
@@ -156,6 +163,11 @@ export const validateOperation = (operation) => {
     return { valid: false, error: 'Invalid operation type' };
   }
 
+  if (operation.type === OperationType.TEXT_UPDATE &&
+      (!Array.isArray(operation.payload?.updates) || !operation.payload.updates.length || operation.payload.updates.length > 5000 ||
+       !operation.payload.updates.every(u => u && typeof u.textId === 'string' && validTextState(u.after) && validTextState(u.before)))) {
+    return { valid: false, error: 'Invalid text update' };
+  }
   return { valid: true };
 };
 
@@ -163,6 +175,8 @@ export const validateOperation = (operation) => {
 export const canOperationsConflict = (op1, op2) => {
   // Simple conflict detection - operations on same strokes
   const getStrokeIds = (op) => {
+    if (op.payload.textId) return [op.payload.textId];
+    if (op.payload.updates) return op.payload.updates.map(u => u.textId);
     if (op.payload.strokeId) return [op.payload.strokeId];
     if (op.payload.strokeIds) return op.payload.strokeIds;
     return [];

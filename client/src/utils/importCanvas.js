@@ -1,3 +1,5 @@
+import { validTextState } from '../../../shared/textBox';
+import { refreshTextBounds } from './textBbox';
 /**
  * Import canvas from JSON file
  * Validates structure and merges strokes into existing canvas
@@ -73,6 +75,13 @@ export function importFromJSON(file, onSuccess, onError) {
       let totalPoints = 0;
 
       for (const stroke of data.strokes) {
+        if (stroke.type === 'text') {
+          if (!validTextState(stroke)) throw new Error('Invalid text box in file');
+          validatedStrokes.push(refreshTextBounds({ id: String(stroke.id || ''), type: 'text', text: stroke.text,
+            x: stroke.x, y: stroke.y, fontSize: stroke.fontSize, config: structuredClone(stroke.config),
+            attachedTo: typeof stroke.attachedTo === 'string' ? stroke.attachedTo : null }));
+          continue;
+        }
         if (!stroke.points || !Array.isArray(stroke.points)) {
           console.warn('Skipping stroke without points:', stroke);
           continue;

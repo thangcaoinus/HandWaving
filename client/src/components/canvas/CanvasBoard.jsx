@@ -1,52 +1,23 @@
+import { textState } from '../../../../shared/textBox';
 import React, { useEffect, useState, useCallback } from "react";
 import { useDraw } from "../../hooks/useDraw";
 import { drawLine } from "../../utils/draw";
-import { useCanvasContext } from "../../contexts/CanvasContext";
+import { useCanvasContext, useCanvasSnapshot } from "../../contexts/CanvasContext";
 import { useCanvasPersistence } from "../../contexts/CanvasPersistenceContext";
 import { useViewportContext } from "../../contexts/ViewportContext";
 import InlineTextEditor from '../canvas/InlineTextEditor';
 import { Loader2, Eye } from 'lucide-react';
+import { ensureTextBox, refreshTextBounds } from '../../utils/textBbox';
 import { logger } from '../../utils/logger';
 
-/**
- * Calculate bounding box for multiline text using actual canvas measurement
- */
-function calculateTextBbox(text, x, y, fontSize) {
-  const lines = text.split('\n');
-  const lineHeight = fontSize * 1.2;
-
-  // Use canvas to accurately measure text width
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  ctx.font = `${fontSize}px Comic Sans MS, cursive`;
-
-  let maxWidth = 0;
-  lines.forEach(line => {
-    if (line.length > 0) {
-      const metrics = ctx.measureText(line);
-      maxWidth = Math.max(maxWidth, metrics.width);
-    }
-  });
-
-  // Add small padding for safety
-  maxWidth += 10;
-
-  const totalHeight = lines.length * lineHeight;
-
-  return {
-    minX: x,
-    maxX: x + maxWidth,
-    minY: y - fontSize,
-    maxY: y + totalHeight - fontSize
-  };
-}
-
 export default function CanvasBoard() {
-  const { canvasRef, setUndoRedo, setOperationManager, allStrokesRef, clearSelection } = useCanvasContext();
+  const { canvasRef, setUndoRedo, setOperationManager, allStrokesRef, clearSelection, textDraftRef, notifyCanvasChange } = useCanvasContext();
   const { viewport } = useViewportContext();
   const { getCanvasDataRef, setCanvasDataRef, canEdit, userRole, loading, isNew, canvasId } = useCanvasPersistence();
 
-  const [textEditorState, setTextEditorState] = useState(null);
+  const snapshot = useCanvasSnapshot();
+  const textEditorState = snapshot.draft;
+  const [editorNotice, setEditorNotice] = useState('');
   const textEditorRef = React.useRef(null);
 
   useEffect(() => {
@@ -60,128 +31,61 @@ export default function CanvasBoard() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }, [canvasRef]);
 
-  const { redrawCanvas, handleUndo, handleRedo, operationManager, textMode, setTextClickCallback } = useDraw(canvasRef, drawLine, textEditorRef);
+  const { redrawCanvas, handleUndo, handleRedo, operationManager, setTextClickCallback } = useDraw(canvasRef, drawLine, textEditorRef);
 
-  // Setup text click callback for inline editor
   useEffect(() => {
-    setTextClickCallback((position) => {
-      // If editor already open, ignore this click (blur will submit the current text)
-      if (textEditorState) {
-        logger.log('⏸️ Editor already open - ignoring new click (blur will handle submit)');
-        return; // Don't open new editor, let blur handle the current one
-      }
-
-      // Convert canvas coordinates to screen coordinates for inline editor
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const rect = canvas.getBoundingClientRect();
-      const ctx = canvas.getContext('2d');
-
-      // Apply viewport transform to get screen position
-      ctx.save();
-      viewport.applyTransform(ctx, canvas.width, canvas.height);
-      const transform = ctx.getTransform();
-      ctx.restore();
-
-      const screenX = position.x * transform.a + transform.e + rect.left;
-      const screenY = position.y * transform.d + transform.f + rect.top;
-
-      // For add mode, create temporary text object for live preview
-      if (position.mode === 'add' && textMode) {
-        textMode.createTempText(
-          position.textId,
-          '', // Start with empty text
-          position.x,
-          position.y,
-          position.fontSize || 16,
-          position.color,
-          position.attachedTo || null
-        );
-        redrawCanvas(); // Show the temporary text immediately
-      }
-
-      setTextEditorState({
-        ...position,
-        screenX,
-        screenY,
-        zoom: viewport.zoom
-      });
+    setTextClickCallback(({ mode, object }) => {
+      if (textDraftRef.current || !canEdit) return;
+      textDraftRef.current = { mode, original: textState(object), object: ensureTextBox(structuredClone(object)) };
+      setEditorNotice('');
+      notifyCanvasChange();
+      redrawCanvas();
     });
-  }, [setTextClickCallback, viewport, canvasRef, textMode, redrawCanvas, textEditorState, allStrokesRef]);
+  }, [setTextClickCallback, textDraftRef, notifyCanvasChange, redrawCanvas, canEdit]);
 
-  const handleTextChange = useCallback((text) => {
-    if (!textMode || !textEditorState) return;
-
-    // Update temporary text in real-time
-    if (textEditorState.mode === 'add') {
-      textMode.updateTempText(textEditorState.textId, text);
-      redrawCanvas();
-    } else if (textEditorState.mode === 'edit') {
-      // For edit mode, also update live
-      const textObj = allStrokesRef.current.get(textEditorState.textId);
-      if (textObj && textObj.type === 'text') {
-        textObj.text = text;
-        textObj.bbox = calculateTextBbox(text, textObj.x, textObj.y, textObj.fontSize);
-        allStrokesRef.current.set(textEditorState.textId, textObj);
-        redrawCanvas();
-      }
-    }
-  }, [textMode, textEditorState, redrawCanvas, allStrokesRef]);
-
-  const handleTextSubmit = useCallback((text) => {
-    if (!textMode || !textEditorState) return;
-
-    // Capture state before clearing
-    const currentState = textEditorState;
-
-    if (!text) {
-      // Empty text - cancel
-      if (currentState.mode === 'add') {
-        textMode.cancelTextEdit(currentState.textId);
-      }
-      setTextEditorState(null);
-      textMode.notifyEditorClosed();
-      redrawCanvas();
-      return;
-    }
-
-    // Submit the text (may be called multiple times - Ctrl+Enter then blur)
-    if (currentState.mode === 'edit') {
-      textMode.editTextAtPosition(currentState.textId, text);
-    } else {
-      textMode.addTextAtPosition(text, currentState.fontSize || 16);
-    }
-
-    // Close editor after submitting
-    setTextEditorState(null);
-    textMode.notifyEditorClosed();
+  const handleTextChange = useCallback(text => {
+    const draft = textDraftRef.current;
+    if (!draft) return;
+    draft.object.text = text;
+    refreshTextBounds(draft.object);
     redrawCanvas();
-  }, [textMode, textEditorState, redrawCanvas]);
+  }, [textDraftRef, redrawCanvas]);
 
   const handleTextCancel = useCallback(() => {
-    if (!textMode || !textEditorState) return;
+    textDraftRef.current = null;
+    notifyCanvasChange();
+    redrawCanvas();
+  }, [textDraftRef, notifyCanvasChange, redrawCanvas]);
 
-    // Close editor immediately
-    const currentState = textEditorState;
-    setTextEditorState(null);
-    textMode.notifyEditorClosed(); // Prevent immediate reopening
-
-    // Remove temporary text if canceling
-    if (currentState.mode === 'add') {
-      textMode.cancelTextEdit(currentState.textId);
-      redrawCanvas();
-    } else if (currentState.mode === 'edit') {
-      // Restore original text
-      const textObj = allStrokesRef.current.get(currentState.textId);
-      if (textObj && textObj.type === 'text' && currentState.text) {
-        textObj.text = currentState.text;
-        textObj.bbox = calculateTextBbox(currentState.text, textObj.x, textObj.y, textObj.fontSize);
-        allStrokesRef.current.set(currentState.textId, textObj);
-        redrawCanvas();
+  const handleTextSubmit = useCallback((force = false) => {
+    const draft = textDraftRef.current;
+    if (!draft || !canEdit) return;
+    const object = draft.object;
+    if (!object.text.trim()) { handleTextCancel(); return; }
+    if (draft.mode === 'edit') {
+      const current = allStrokesRef.current.get(object.id);
+      if (!current) { handleTextCancel(); return; }
+      if (!force && JSON.stringify(textState(current)) !== JSON.stringify(draft.original)) {
+        draft.conflict = true;
+        notifyCanvasChange();
+        return;
       }
+      operationManager.updateTexts([{ textId: object.id, after: textState(object) }]);
+    } else {
+      operationManager.addText(object.id, object.text, object.x, object.y, object.fontSize, object.config, object.attachedTo);
     }
-  }, [textMode, textEditorState, redrawCanvas, allStrokesRef]);
+    textDraftRef.current = null;
+    notifyCanvasChange();
+    redrawCanvas();
+  }, [textDraftRef, canEdit, handleTextCancel, allStrokesRef, operationManager, notifyCanvasChange, redrawCanvas]);
+
+  useEffect(() => {
+    const draft = textDraftRef.current;
+    if (draft && (!canEdit || (draft.mode === 'edit' && !allStrokesRef.current.has(draft.object.id)))) {
+      handleTextCancel();
+      setEditorNotice(canEdit ? 'This text box was deleted by a collaborator.' : 'Editing ended because your access changed.');
+    }
+  }, [snapshot, canEdit, textDraftRef, allStrokesRef, handleTextCancel]);
 
   // Provide undo/redo functions to context
   useEffect(() => {
@@ -226,7 +130,7 @@ export default function CanvasBoard() {
         // Convert Array to Map for unified storage
         allStrokesRef.current.clear();
         data.strokes.forEach(stroke => {
-          allStrokesRef.current.set(stroke.id, stroke);
+          allStrokesRef.current.set(stroke.id, stroke.type === 'text' ? refreshTextBounds(stroke) : stroke);
         });
         logger.log('✅ allStrokesRef.current now has:', allStrokesRef.current.size, 'strokes');
         // Clear selection to prevent stale stroke IDs from causing issues
@@ -286,22 +190,18 @@ export default function CanvasBoard() {
         </div>
       )}
 
-      {/* Inline Text Editor */}
-      {textEditorState && (
-        <InlineTextEditor
-          ref={textEditorRef}
-          text={textEditorState.text || ''}
-          x={textEditorState.screenX}
-          y={textEditorState.screenY}
-          fontSize={textEditorState.fontSize || 16}
-          color={textEditorState.color || '#000000'}
-          zoom={textEditorState.zoom || 1}
-          onChange={handleTextChange}
-          onSubmit={handleTextSubmit}
-          onCancel={handleTextCancel}
-          onBlurStart={() => textMode?.notifyEditorClosed()}
-        />
-      )}
+      {editorNotice && <div role="status" className="fixed bottom-8 left-1/2 -translate-x-1/2 paper-card p-3 z-20">{editorNotice}</div>}
+      {textEditorState && (() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return null;
+        const object = textEditorState.object;
+        const rect = canvas.getBoundingClientRect();
+        const screen = viewport.canvasToScreen(object.x, object.y - object.fontSize, canvas.width, canvas.height);
+        return <InlineTextEditor ref={textEditorRef} object={object}
+          x={screen.x + rect.left} y={screen.y + rect.top} zoom={viewport.zoom}
+          conflict={textEditorState.conflict} onChange={handleTextChange}
+          onSubmit={handleTextSubmit} onCancel={handleTextCancel} />;
+      })()}
     </div>
   );
 }

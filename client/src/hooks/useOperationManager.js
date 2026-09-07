@@ -1,8 +1,10 @@
+import { useParams } from 'react-router-dom';
+import { textState } from '../../../shared/textBox';
 // Operation manager - core of the collaborative drawing system.
 // Handles operation execution, inverse generation for undo/redo, conflict resolution, broadcasting.
 // Flow: Local exec → Broadcast → Remote validation/exec → Inverse for undo stack.
 
-import { useRef, useCallback, useMemo } from 'react';
+import { useRef, useCallback, useMemo, useEffect } from 'react';
 import {
   OperationType,
   createOperation,
@@ -26,44 +28,27 @@ import {
 import { useSocket } from '../contexts/SocketContext';
 import { useCanvasContext } from '../contexts/CanvasContext';
 import { computeBoundingBox, translatePoints, resizePoints, rotatePoints } from '../utils/geometry';
+import { calculateTextBbox, resizeTextBox, refreshTextBounds } from '../utils/textBbox';
 import { logger } from '../utils/logger';
-
-// Calculates multiline text bbox using canvas.measureText for accurate width
-function calculateTextBbox(text, x, y, fontSize) {
-  const lines = text.split('\n');
-  const lineHeight = fontSize * 1.2;
-
-  // Use canvas to accurately measure text width
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  ctx.font = `${fontSize}px Comic Sans MS, cursive`;
-
-  let maxWidth = 0;
-  lines.forEach(line => {
-    if (line.length > 0) {
-      const metrics = ctx.measureText(line);
-      maxWidth = Math.max(maxWidth, metrics.width);
-    }
-  });
-
-  // Add small padding for safety
-  maxWidth += 10;
-
-  const totalHeight = lines.length * lineHeight;
-
-  return {
-    minX: x,
-    maxX: x + maxWidth,
-    minY: y - fontSize,
-    maxY: y + totalHeight - fontSize
-  };
-}
 
 export function useOperationManager(userId, redrawCallbackRef, username = 'Unknown', onChangeCallback = null) {
   const { emitOperation, currentRoom } = useSocket();
   const {
     allStrokesRef
   } = useCanvasContext();
+
+  const { id: routeCanvasId } = useParams();
+  const localChannelRef = useRef(null);
+  const remoteHandlerRef = useRef(null);
+  useEffect(() => {
+    if (!routeCanvasId?.startsWith('local-')) return;
+    const channel = new BroadcastChannel(`local-canvas-sync-${routeCanvasId}`);
+    localChannelRef.current = channel;
+    channel.onmessage = event => {
+      if (event.data?.type === 'OPERATION') remoteHandlerRef.current?.(event.data.payload.operation);
+    };
+    return () => { channel.close(); localChannelRef.current = null; };
+  }, [routeCanvasId]);
 
   const undoStackRef = useRef([]);
   const redoStackRef = useRef([]);
@@ -77,6 +62,12 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
   const operationExecutors = useMemo(() => ({
     [OperationType.STROKE_ADD]: (operation) => {
       const { strokeId, points, config } = operation.payload;
+      if (operation.payload.type === 'text') {
+        const text = refreshTextBounds({ ...operation.payload, id: strokeId, type: 'text',
+          userId: operation.userId, username: operation.username || username });
+        allStrokesRef.current.set(strokeId, text);
+        return;
+      }
 
       const strokeData = {
         id: strokeId,
@@ -159,26 +150,21 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
     },
 
     [OperationType.STROKE_RESIZE]: (operation) => {
-      const { strokeIds, scaleX, scaleY, anchorPoint } = operation.payload;
+      const { strokeIds, scaleX, scaleY, anchorPoint, restoreText } = operation.payload;
 
       // Apply to unified storage (Map)
       strokeIds.forEach(strokeId => {
         const stroke = allStrokesRef.current.get(strokeId);
         if (stroke) {
           if (stroke.type === 'text') {
-            // Resize text by scaling position relative to anchor and updating fontSize
-            // Allow position to flip (negative scale) but keep fontSize positive
-            const dx = stroke.x - anchorPoint.x;
-            const dy = stroke.y - anchorPoint.y;
-            stroke.x = anchorPoint.x + dx * scaleX;
-            stroke.y = anchorPoint.y + dy * scaleY;
-
-            // Use absolute scale for fontSize to prevent negative sizes
-            const avgScale = Math.max(0.1, Math.abs((scaleX + scaleY) / 2));
-            stroke.fontSize = stroke.fontSize * avgScale;
-
-            // Update bbox using accurate measurement
-            stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize);
+            // When `restoreText` is set this op is an INVERSE: restore exact pre-resize values (the
+            // font scale is non-linear, so reciprocal scaling can't undo it).
+            if (restoreText && operation.payload.textOriginals?.[strokeId]) {
+              Object.assign(stroke, structuredClone(operation.payload.textOriginals[strokeId]));
+              refreshTextBounds(stroke);
+            } else {
+              resizeTextBox(stroke, scaleX, scaleY, anchorPoint);
+            }
           } else {
             // Resize regular stroke
             stroke.points = resizePoints(stroke.points, anchorPoint, scaleX, scaleY);
@@ -210,7 +196,7 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
             // Text stays upright but moves around the rotation center
 
             // Update bbox using accurate measurement
-            stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize);
+            stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config);
           } else {
             // Rotate regular stroke
             stroke.points = rotatePoints(stroke.points, centerPoint, angleDelta);
@@ -244,7 +230,7 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
             userId: operation.userId,
             username: operation.username,
           };
-          allStrokesRef.current.set(stroke.id, strokeWithUser);
+          allStrokesRef.current.set(stroke.id, strokeWithUser.type === 'text' ? refreshTextBounds(strokeWithUser) : strokeWithUser);
         }
       });
       
@@ -262,6 +248,15 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
       logger.log(`🗑️ Batch deleted ${strokeIds.length} strokes`);
     },
 
+    [OperationType.TEXT_UPDATE]: (operation) => {
+      operation.payload.updates.forEach(({ textId, after }) => {
+        const stroke = allStrokesRef.current.get(textId);
+        if (stroke?.type === 'text') {
+          Object.assign(stroke, structuredClone(after));
+          refreshTextBounds(stroke);
+        }
+      });
+    },
     [OperationType.TEXT_ADD]: (operation) => {
       const { textId, text, x, y, fontSize, config, attachedTo } = operation.payload;
 
@@ -283,7 +278,7 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
         fontSize,
         config,
         attachedTo,
-        bbox: calculateTextBbox(text, x, y, fontSize), // Multiline-aware bbox
+        bbox: calculateTextBbox(text, x, y, fontSize, config), // Multiline-aware bbox
         userId: operation.userId,
         username: operation.username || username,
       };
@@ -298,7 +293,7 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
       const textObj = allStrokesRef.current.get(textId);
       if (textObj && textObj.type === 'text') {
         textObj.text = newText;
-        textObj.bbox = calculateTextBbox(newText, textObj.x, textObj.y, textObj.fontSize);
+        textObj.bbox = calculateTextBbox(newText, textObj.x, textObj.y, textObj.fontSize, textObj.config);
         allStrokesRef.current.set(textId, textObj);
       }
     },
@@ -307,7 +302,7 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
       const { textId } = operation.payload;
       allStrokesRef.current.delete(textId);
     }
-  }), []); // Refs never change, no deps needed
+  }), [allStrokesRef, userId, username]);
 
   // Create inverse operations for undo functionality
   const createInverseOperation = useCallback((operation) => {
@@ -396,14 +391,18 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
         return null;
 
       case OperationType.STROKE_RESIZE:
-        // Inverse resize: apply reciprocal scale factors
+        // Box dimensions may clamp during resize; text restores its exact snapshot.
         return createOperation(
           OperationType.STROKE_RESIZE,
           StrokeResizePayload.create(
             operation.payload.strokeIds,
             1 / operation.payload.scaleX,
             1 / operation.payload.scaleY,
-            operation.payload.anchorPoint
+            operation.payload.anchorPoint,
+            operation.payload.position,
+            operation.payload.textOriginals,
+            true, // restoreText — text restores exact values; strokes reciprocal-scale
+            operation.payload.originalBbox
           ),
           operation.userId,
           operation.username
@@ -443,6 +442,11 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
           operation.userId,
           operation.username
         );
+
+      case OperationType.TEXT_UPDATE:
+        return createOperation(OperationType.TEXT_UPDATE, {
+          updates: operation.payload.updates.map(({ textId, before, after }) => ({ textId, before: after, after: before })),
+        }, operation.userId, operation.username);
 
       case OperationType.TEXT_ADD:
         // Inverse: Delete the text
@@ -527,6 +531,7 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
     const executor = operationExecutors[operation.type];
     if (executor) {
       executor(operation, isLocal);
+      if (isLocal && !skipBroadcast) localChannelRef.current?.postMessage({ type: 'OPERATION', payload: { operation } });
       
       if (isLocal && !skipUndoStack) {
         // Add to undo stack only for new operations (not undo/redo)
@@ -644,10 +649,10 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
     return executeOperation(operation, true, false, true);
   }, [executeOperation, createOperationWithUser]);
 
-  const resizeStrokes = useCallback((strokeIds, scaleX, scaleY, anchorPoint) => {
+  const resizeStrokes = useCallback((strokeIds, scaleX, scaleY, anchorPoint, position = null, textOriginals = null, originalBbox = null) => {
     const operation = createOperationWithUser(
       OperationType.STROKE_RESIZE,
-      StrokeResizePayload.create(strokeIds, scaleX, scaleY, anchorPoint)
+      StrokeResizePayload.create(strokeIds, scaleX, scaleY, anchorPoint, position, textOriginals, false, originalBbox)
     );
 
     return executeOperation(operation, true);
@@ -671,6 +676,17 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
 
     return executeOperation(operation, true);
   }, [executeOperation, createOperationWithUser]);
+
+  const updateTexts = useCallback((changes) => {
+    const updates = changes.flatMap(({ textId, after }) => {
+      const stroke = allStrokesRef.current.get(textId);
+      if (stroke?.type !== 'text') return [];
+      const before = textState(stroke);
+      return JSON.stringify(before) === JSON.stringify(after) ? [] : [{ textId, before, after }];
+    });
+    if (!updates.length) return false;
+    return executeOperation(createOperationWithUser(OperationType.TEXT_UPDATE, { updates }), true);
+  }, [allStrokesRef, executeOperation, createOperationWithUser]);
 
   const editText = useCallback((textId, newText, oldText) => {
     const operation = createOperationWithUser(
@@ -752,6 +768,8 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
     return result;
   }, [executeOperation]);
 
+  remoteHandlerRef.current = handleRemoteOperation;
+
   // Adopt room operations as local when joining (goes to finishedStrokesRef)
   const adoptRoomOperation = useCallback((operation) => {
     executeOperation(operation, true, true, true); // isLocal=true, skipBroadcast=true, skipUndoStack=true
@@ -776,6 +794,7 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
     rotateStrokes,
     addText,
     editText,
+    updateTexts,
     deleteText,
     batchAddStrokes,
     batchDeleteStrokes,

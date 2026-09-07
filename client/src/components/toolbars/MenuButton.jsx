@@ -46,12 +46,12 @@ export default function MenuButton() {
     }
   }, [isOpen]);
 
-  const handleExport = (format) => {
+  const handleExport = async (format) => {
     // Convert Map to array for export
-    const strokes = allStrokesRef?.current 
+    const strokes = allStrokesRef?.current
       ? Array.from(allStrokesRef.current.values())
       : [];
-    
+
     if (!strokes || strokes.length === 0) {
       setModalMessage("No strokes to export. Draw something first!");
       setShowErrorModal(true);
@@ -61,21 +61,28 @@ export default function MenuButton() {
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `canvas-${timestamp}`;
 
-    switch (format) {
-      case "png":
-        exportToPNG(strokes, `${filename}.png`);
-        break;
-      case "pdf":
-        exportToPDF(strokes, `${filename}.pdf`);
-        break;
-      case "json":
-        exportToJSON(strokes, viewport, `${filename}.json`);
-        break;
-      default:
-        logger.error("Unknown export format:", format);
-    }
-
+    // Close the menu right away; PNG/PDF export is async (KaTeX/Markdown rasters + fonts).
     setIsOpen(false);
+
+    try {
+      switch (format) {
+        case "png":
+          await exportToPNG(strokes, `${filename}.png`);
+          break;
+        case "pdf":
+          await exportToPDF(strokes, `${filename}.pdf`);
+          break;
+        case "json":
+          exportToJSON(strokes, viewport, `${filename}.json`);
+          break;
+        default:
+          logger.error("Unknown export format:", format);
+      }
+    } catch (error) {
+      logger.error("Export failed:", format, error);
+      setModalMessage("Export failed. Please try again.");
+      setShowErrorModal(true);
+    }
   };
 
   const handleImport = () => {

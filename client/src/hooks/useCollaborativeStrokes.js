@@ -6,7 +6,7 @@ import { OperationType } from '../utils/operations';
 
 export function useCollaborativeStrokes(redrawCanvas, operationManager = null) {
   const { socket, registerOperationHandler, registerRoomJoinedHandler } = useSocket();
-  const { allStrokesRef, clearLocalStrokes } = useCanvasContext();
+  const { clearLocalStrokes } = useCanvasContext();
   const remoteOngoingStrokesRef = useRef(new Map());
 
   // Keep refs fresh without re-registering handlers
@@ -59,6 +59,10 @@ export function useCollaborativeStrokes(redrawCanvas, operationManager = null) {
           }
           break;
 
+        case OperationType.TEXT_ADD:
+        case OperationType.TEXT_EDIT:
+        case OperationType.TEXT_DELETE:
+        case OperationType.TEXT_UPDATE:
         case OperationType.STROKE_DELETE:
         case OperationType.STROKE_MOVE:
         case OperationType.STROKE_UNDO:
@@ -84,28 +88,13 @@ export function useCollaborativeStrokes(redrawCanvas, operationManager = null) {
     };
 
     const handleRoomJoined = ({ operations }) => {
-      // Only clear local strokes if we have no data loaded
-      // This prevents wiping canvas when joining after loading from database
-      const hasLocalData = allStrokesRef.current.size > 0;
-
-      if (!hasLocalData) {
-        logger.log('📭 No local data, adopting room operations as local strokes');
+      // Room history includes the saved base plus edits since that snapshot.
+      // Replaying it also catches changes made before this client joined.
+      if (operations?.length && operationManagerRef.current) {
         clearLocalStrokes();
-        remoteOngoingStrokesRef.current.clear();
-
-        // Adopt ALL room operations into unified storage
-        if (operations && operations.length > 0 && operationManagerRef.current) {
-          logger.log(`Adopting ${operations.length} operations as local strokes`);
-          operations.forEach(operation => {
-            // Use adoptRoomOperation to add strokes to unified storage
-            operationManagerRef.current.adoptRoomOperation(operation);
-          });
-        }
-      } else {
-        logger.log(`📦 Keeping local data (${allStrokesRef.current.size} strokes), ignoring room operations on join`);
-        // Just clear ongoing strokes to avoid duplicates
-        remoteOngoingStrokesRef.current.clear();
+        operations.forEach(operation => operationManagerRef.current.adoptRoomOperation(operation));
       }
+      remoteOngoingStrokesRef.current.clear();
 
       redrawCanvasRef.current();
     };

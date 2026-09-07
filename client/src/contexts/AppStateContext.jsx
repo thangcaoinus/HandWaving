@@ -14,6 +14,7 @@ export function AppStateProvider({ children }) {
     lineJoin: "round",
   };
 
+  const [textDefaults, setTextDefaults] = useState({ fontSize: 24, color: "#000000" });
   const [brushSettings, setBrushSettings] = useState(defaultConfig);
   const [showGrid, setShowGrid] = useState(true);
   const [brushType, setBrushType] = useState(1);
@@ -57,6 +58,7 @@ export function AppStateProvider({ children }) {
   };
 
   const value = {
+    textDefaults, setTextDefaults,
     brushSettings,
     setBrushSettings,
     updateBrushColor,

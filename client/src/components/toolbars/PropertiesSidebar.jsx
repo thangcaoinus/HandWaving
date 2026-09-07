@@ -1,3 +1,5 @@
+import TextPropertiesSidebar from './TextPropertiesSidebar';
+import { useCanvasSnapshot } from '../../contexts/CanvasContext';
 import React from "react";
 import { useAppState } from "../../contexts/AppStateContext";
 import { Palette, Pencil, Minus } from "lucide-react";
@@ -10,6 +12,9 @@ export default function PropertiesSidebar() {
     updateLineDash,
     brushType,
   } = useAppState();
+
+  const { texts, draft } = useCanvasSnapshot();
+  if (draft || texts.length || brushType === 6) return <TextPropertiesSidebar />;
 
   // Only show sidebar for drawing and shape tools (brush types 1, 2, and 3)
   const shouldShow = brushType === 1 || brushType === 2 || brushType === 3;

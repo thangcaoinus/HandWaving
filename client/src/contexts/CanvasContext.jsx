@@ -1,7 +1,7 @@
 // Canvas context - unified stroke storage (Map for O(1) lookups) + selection + undo/redo state.
 // Single source of truth for all strokes (local + remote + text). Refs prevent re-renders.
 
-import React, { createContext, useContext, useRef } from "react";
+import React, { createContext, useContext, useRef, useCallback, useSyncExternalStore, useMemo } from "react";
 
 const CanvasContext = createContext();
 
@@ -20,6 +20,29 @@ export function CanvasProvider({ children }) {
   const redoFunctionRef = useRef(null);
 
   const operationManagerRef = useRef(null);
+  const redrawRef = useRef(null);
+  const textDraftRef = useRef(null);
+  const textCreationRef = useRef(null);
+  const listenersRef = useRef(new Set());
+  const notificationPending = useRef(false);
+  const subscribe = useCallback(listener => {
+    listenersRef.current.add(listener);
+    return () => listenersRef.current.delete(listener);
+  }, []);
+  const getSnapshot = useCallback(() => JSON.stringify({
+    ids: [...selectedStrokeIdsRef.current],
+    texts: [...selectedStrokeIdsRef.current].map(id => allStrokesRef.current.get(id)).filter(s => s?.type === 'text'),
+    draft: textDraftRef.current,
+  }), []);
+  const notifyCanvasChange = useCallback(() => {
+    if (notificationPending.current) return;
+    notificationPending.current = true;
+    queueMicrotask(() => {
+      notificationPending.current = false;
+      listenersRef.current.forEach(listener => listener());
+    });
+  }, []);
+
 
   const addRemoteStroke = (strokeId, strokeData) => {
     allStrokesRef.current.set(strokeId, strokeData);
@@ -40,14 +63,17 @@ export function CanvasProvider({ children }) {
 
   const addToSelection = (strokeId) => {
     selectedStrokeIdsRef.current.add(strokeId);
+    notifyCanvasChange();
   };
 
   const removeFromSelection = (strokeId) => {
     selectedStrokeIdsRef.current.delete(strokeId);
+    notifyCanvasChange();
   };
 
   const clearSelection = () => {
     selectedStrokeIdsRef.current.clear();
+    notifyCanvasChange();
   };
 
   const isStrokeSelected = (strokeId) => {
@@ -76,6 +102,7 @@ export function CanvasProvider({ children }) {
   };
 
   const value = {
+    redrawRef, textDraftRef, textCreationRef, notifyCanvasChange, subscribe, getSnapshot,
     canvasRef,
     allStrokesRef,
     ongoingStrokeRef,
@@ -109,4 +136,10 @@ export function useCanvasContext() {
     throw new Error("useCanvasContext must be used within a CanvasProvider");
   }
   return context;
+}
+
+export function useCanvasSnapshot() {
+  const { subscribe, getSnapshot } = useCanvasContext();
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return useMemo(() => JSON.parse(snapshot), [snapshot]);
 }

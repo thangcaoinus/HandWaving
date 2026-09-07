@@ -55,3 +55,6 @@ Thumbs.db
 # Local dev tooling — not part of the shipped app
 scripts/
 .impeccable/
+
+# Local per-task work log (not repo history — durable architecture lives in CLAUDE.md)
+CHANGELOG.md
