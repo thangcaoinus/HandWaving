@@ -13,6 +13,8 @@ builder = "NIXPACKS"
 buildCommand = "npm run build:server"
 
 [deploy]
-startCommand = "npm start"
+# Runs migrations then boots, INSIDE server/ (schema + local prisma@6 both present).
+# Do NOT set a Custom Start/Build Command in the dashboard — those override this file.
+startCommand = "npm run start:prod --prefix server"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
