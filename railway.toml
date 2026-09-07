@@ -1,0 +1,18 @@
+# Railway service config — deploy the SERVER from the REPO ROOT.
+# Root Directory (dashboard) must be empty/'.' so the whole tree ships and
+# server/index.js can import ../shared/textBox.js at runtime.
+#
+# Why an explicit buildCommand: Nixpacks' auto-detect runs `npm install && npx
+# prisma generate` at ROOT, which (a) installs only root deps, not server's, and
+# (b) runs prisma with no schema present, fetching a stray prisma@latest that
+# crashes npm. build:server instead installs server deps (pinned prisma@6) and
+# runs `prisma generate` INSIDE server/ where the schema and binary live.
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm run build:server"
+
+[deploy]
+startCommand = "npm start"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
