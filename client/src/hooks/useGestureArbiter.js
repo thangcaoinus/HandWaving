@@ -28,7 +28,6 @@ export function useGestureArbiter({
   lastMousePosRef,
   // current tool flags
   isSelectMode,
-  isTextMode,
   // mode cancels / abort (called when a 2nd finger escalates a single-finger action)
   abortSingleFingerAction,
   // tap synthesis targets
@@ -86,6 +85,7 @@ export function useGestureArbiter({
     if (suppressUntilAllUpRef.current) return { handled: true };
 
     // Lone finger → let the normal router start (draw/marquee/move/text). Track it as a tap candidate.
+    if (!isSelectMode) lastTapRef.current = null;
     const canvasPt = canvasHelpers.getCanvasPoint(e);
     if (canvasPt && lastMousePosRef) lastMousePosRef.current = canvasPt; // keep paste-at-cursor fresh
     tapCandidateRef.current = { x: local.x, y: local.y, startX: local.x, startY: local.y, moved: false };
@@ -156,13 +156,19 @@ export function useGestureArbiter({
     tapCandidateRef.current = null;
     if (!tc || tc.moved) return { handled: false };
 
+    // Creation taps must never pair with a later selection tap to reopen existing text.
+    if (!isSelectMode) {
+      lastTapRef.current = null;
+      return { handled: false };
+    }
+
     const now = Date.now();
     const prev = lastTapRef.current;
     const isDouble =
       prev && now - prev.time < DOUBLE_TAP_MS &&
       Math.hypot(local.x - prev.x, local.y - prev.y) < DOUBLE_TAP_DIST;
 
-    if (isDouble && (isSelectMode || isTextMode)) {
+    if (isDouble) {
       lastTapRef.current = null;
       // Synthesize the event shape handleDoubleClick expects (reads clientX/Y).
       const res = handleDoubleTap?.({ clientX: e.clientX, clientY: e.clientY, pointerType: "touch" });

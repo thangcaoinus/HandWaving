@@ -171,6 +171,30 @@ textarea {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--coral) 22%, transparent);
 }
 
+/* Keep text properties compact without changing shared sketch controls. */
+.text-properties-sidebar {
+  --text-control-height: 32px;
+}
+
+.text-properties-sidebar .text-sidebar-control {
+  height: var(--text-control-height);
+  min-height: var(--text-control-height);
+}
+
+.text-properties-sidebar .sketch-input {
+  padding: 0.25rem 0.5rem;
+}
+
+@media (any-pointer: coarse) {
+  .text-properties-sidebar {
+    --text-control-height: 36px;
+  }
+
+  .text-properties-sidebar .sketch-input {
+    font-size: 16px;
+  }
+}
+
 /* Buttons share the hand-placed radius + lift; only the fill changes. */
 .btn-coral,
 .btn-ghost,

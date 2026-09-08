@@ -239,7 +239,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     canvasRef,
     canvasHelpers,
     viewport,
-    isSelectMode: isSelectMode || isTextMode,
+    isSelectMode,
     selectedStrokeIdsRef: canvas.selectedStrokeIdsRef,
     allStrokesRef: canvas.allStrokesRef,
     operationManager,
@@ -352,6 +352,10 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
       // Callback will be set from CanvasBoard via setTextClickCallback
       if (textClickCallbackRef.current) {
         textClickCallbackRef.current(textPosition);
+        if (textPosition.mode === 'add') {
+          lastPointerDownRef.current = { t: 0, x: 0, y: 0 };
+          appState.updateBrushType(4);
+        }
       }
     },
     canEdit,
@@ -366,7 +370,6 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     canvasHelpers,
     lastMousePosRef,
     isSelectMode,
-    isTextMode,
     // Discard whatever single-finger action is in flight when a 2nd finger lands (mode-agnostic dispatch).
     abortSingleFingerAction: () => {
       if (drawMode.isDrawing?.current) { drawMode.abortStroke(); return; }
@@ -375,6 +378,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
         transformMode.cancel(); return;
       }
       if (selectMode.isSelecting?.current || selectMode.isLassoing?.current) { selectMode.cancel(); return; }
+      textMode.cancelCreation();
     },
     selectAtPoint: selectMode.selectAtPoint,
     handleDoubleTap: textMode.handleDoubleClick,
@@ -391,6 +395,10 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
   useEffect(() => {
     redrawCanvas();
   }, [showGrid, redrawCanvas]);
+
+  useEffect(() => {
+    if (isTextMode && canvasRef.current) canvasRef.current.style.cursor = 'crosshair';
+  }, [isTextMode, canvasRef]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -416,7 +424,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
       // Double-click detection. PointerEvent.detail is always 0 (unlike MouseEvent), so for mouse/pen
       // we synthesize it from the previous pointerdown's time+position. Touch double-tap is handled by
       // the gesture arbiter (see onPointerUp), so we skip it here to avoid firing twice.
-      if (e.pointerType !== 'touch' && (isSelectMode || isTextMode)) {
+      if (e.pointerType !== 'touch' && isSelectMode) {
         const now = Date.now();
         const last = lastPointerDownRef.current;
         const isDbl = now - last.t < 300 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 6;
@@ -427,9 +435,6 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
         } else {
           lastPointerDownRef.current = { t: now, x: e.clientX, y: e.clientY };
         }
-      }
-      if (isTextMode) {
-        if (transformMode.handleMouseDown(e).handled) return;
       }
       if (isSelectMode) {
         // Check transform mode first (move/resize/rotate)
@@ -482,7 +487,6 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
         transformMode.handleMouseMove(e);
       } else if (isTextMode) {
         if (textMode.handleMouseMove(e).handled) return;
-        transformMode.handleMouseMove(e);
       } else if (isInsertShapeMode) {
         // Insert shape mode - delegate to insertShapeMode
         const insertShapeResult = insertShapeMode.handleMouseMove(e);
@@ -542,7 +546,6 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
 
       if (isTextMode) {
         if (textMode.handleMouseUp(e).handled) return;
-        if (transformMode.handleMouseUp(e).handled) return;
       }
       if (isSelectMode) {
         // Check select mode first for lasso/rectangle selection completion
@@ -603,6 +606,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
       else if (insertShapeMode.isDrawing?.current) insertShapeMode.cancel();
       else if (transformMode.isMoving?.current || transformMode.isResizing?.current || transformMode.isRotating?.current) transformMode.cancel();
       else if (selectMode.isSelecting?.current || selectMode.isLassoing?.current) selectMode.cancel();
+      textMode.cancelCreation();
     };
 
     const handleContextMenu = (e) => {

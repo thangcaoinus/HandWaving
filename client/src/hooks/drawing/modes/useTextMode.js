@@ -29,11 +29,6 @@ export function useTextMode({ canvasHelpers, onTextClick, allStrokesRef, canEdit
     if (!canEdit) return { handled: false };
     const point = canvasHelpers.getCanvasPoint(e);
     if (!point) return { handled: false };
-    const stroke = findText(point);
-    if (stroke) {
-      select(stroke);
-      return { handled: true };
-    }
     selectedStrokeIdsRef.current.clear();
     startRef.current = point;
     shapeRef.current = [...allStrokesRef.current.values()].reverse().find(s => s.type !== 'text' && s.bbox && pointInBoundingBox(point, s.bbox));
@@ -51,7 +46,9 @@ export function useTextMode({ canvasHelpers, onTextClick, allStrokesRef, canEdit
     return { handled: true };
   };
   const cancelCreation = () => {
+    if (!startRef.current) return;
     startRef.current = null;
+    shapeRef.current = null;
     textCreationRef.current = null;
     redrawCanvas();
   };
@@ -60,16 +57,10 @@ export function useTextMode({ canvasHelpers, onTextClick, allStrokesRef, canEdit
     if (e) handleMouseMove(e);
     const b = textCreationRef.current;
     const clicked = Math.hypot(b.maxX - b.minX, b.maxY - b.minY) < 6;
-    const shape = clicked ? shapeRef.current : null;
-    if (shape) {
-      const existing = [...allStrokesRef.current.values()].find(s => s.type === 'text' && s.attachedTo === shape.id);
-      if (existing) {
-        cancelCreation();
-        select(existing);
-        onTextClick({ mode: 'edit', object: structuredClone(existing) });
-        return { handled: true };
-      }
-    }
+    // A shape can have one attached label. Clicking a labeled shape creates a standalone box.
+    const candidate = clicked ? shapeRef.current : null;
+    const shape = candidate && ![...allStrokesRef.current.values()].some(s => s.type === 'text' && s.attachedTo === candidate.id)
+      ? candidate : null;
     const fontSize = textDefaults.fontSize;
     const box = { ...DEFAULT_TEXT_BOX, ...textDefaults.textBox };
     let x = b.minX, top = b.minY;
