@@ -1,5 +1,7 @@
 import { validTextState } from '../../../shared/textBox';
+import { validImageState } from '../../../shared/imageObject';
 import { refreshTextBounds } from './textBbox';
+import { refreshImageBounds } from './imageBbox';
 /**
  * Import canvas from JSON file
  * Validates structure and merges strokes into existing canvas
@@ -79,6 +81,14 @@ export function importFromJSON(file, onSuccess, onError) {
           if (!validTextState(stroke)) throw new Error('Invalid text box in file');
           validatedStrokes.push(refreshTextBounds({ id: String(stroke.id || ''), type: 'text', text: stroke.text,
             x: stroke.x, y: stroke.y, fontSize: stroke.fontSize, config: structuredClone(stroke.config),
+            attachedTo: typeof stroke.attachedTo === 'string' ? stroke.attachedTo : null }));
+          continue;
+        }
+        if (stroke.type === 'image') {
+          if (!validImageState(stroke)) throw new Error('Invalid image in file');
+          validatedStrokes.push(refreshImageBounds({ id: String(stroke.id || ''), type: 'image', src: stroke.src,
+            x: stroke.x, y: stroke.y, width: stroke.width, height: stroke.height,
+            config: stroke.config ? structuredClone(stroke.config) : null,
             attachedTo: typeof stroke.attachedTo === 'string' ? stroke.attachedTo : null }));
           continue;
         }

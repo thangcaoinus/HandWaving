@@ -2,27 +2,32 @@
 
 export const HANDLE_SIZE = 8; // pixels
 export const ROTATION_HANDLE_OFFSET = 30; // pixels above bbox
+export const DELETE_HANDLE_OFFSET = 30; // pixels above bbox (mirrors rotate, on the opposite side)
+export const DELETE_HANDLE_RADIUS = 9; // pixels — a touch bigger than a resize handle so it's tappable
 
-// Calculates positions for all 8 resize handles (4 corners + 4 edges) and rotation handle
+// Calculates positions for all 8 resize handles (4 corners + 4 edges), rotation, and delete handles.
 export function getHandlePositions(bbox) {
   const centerX = (bbox.minX + bbox.maxX) / 2;
   const centerY = (bbox.minY + bbox.maxY) / 2;
-  
+
   return {
     // Corner handles
     nw: { x: bbox.minX, y: bbox.minY },
     ne: { x: bbox.maxX, y: bbox.minY },
     sw: { x: bbox.minX, y: bbox.maxY },
     se: { x: bbox.maxX, y: bbox.maxY },
-    
+
     // Edge handles
     n: { x: centerX, y: bbox.minY },
     s: { x: centerX, y: bbox.maxY },
     e: { x: bbox.maxX, y: centerY },
     w: { x: bbox.minX, y: centerY },
-    
-    // Rotation handle
-    rotate: { x: centerX, y: bbox.minY - ROTATION_HANDLE_OFFSET }
+
+    // Rotation handle (top-center, above the box)
+    rotate: { x: centerX, y: bbox.minY - ROTATION_HANDLE_OFFSET },
+
+    // Delete handle (above the top-RIGHT corner, clear of the rotate handle + resize handles)
+    delete: { x: bbox.maxX, y: bbox.minY - DELETE_HANDLE_OFFSET }
   };
 }
 
@@ -32,8 +37,17 @@ export function getHandlePositions(bbox) {
 export function detectHandle(mousePoint, bbox, currentZoom, hitScale = 1) {
   const handles = getHandlePositions(bbox);
   const effectiveHandleSize = (HANDLE_SIZE * hitScale) / currentZoom;
-  
-  // Check rotation handle first (highest priority)
+
+  // Check delete handle first (highest priority — it's a discrete action, not a drag).
+  // Circular hit test sized off the drawn radius, inflated by hitScale for coarse/touch pointers.
+  const deleteHitRadius = (DELETE_HANDLE_RADIUS * hitScale) / currentZoom;
+  const ddx = mousePoint.x - handles.delete.x;
+  const ddy = mousePoint.y - handles.delete.y;
+  if (ddx * ddx + ddy * ddy <= deleteHitRadius * deleteHitRadius) {
+    return { type: 'delete', position: 'delete' };
+  }
+
+  // Check rotation handle next
   if (isPointInHandle(mousePoint, handles.rotate, effectiveHandleSize)) {
     return {
       type: 'rotate',
@@ -147,8 +161,56 @@ export function drawRotationHandle(ctx, bbox) {
   ctx.restore();
 }
 
+// Draws the delete handle: a red circle with a white "×", above the top-right corner.
+// Drawn in canvas space at fixed size (like drawResizeHandles/drawRotationHandle) — no zoom division,
+// so it matches the other handles at every zoom level.
+export function drawDeleteHandle(ctx, bbox) {
+  const handles = getHandlePositions(bbox);
+  const h = handles.delete;
+  const r = DELETE_HANDLE_RADIUS;
+
+  ctx.save();
+
+  // Connection line from the top-right corner up to the button.
+  ctx.strokeStyle = '#dc3545';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 2]);
+  ctx.beginPath();
+  ctx.moveTo(bbox.maxX, bbox.minY);
+  ctx.lineTo(h.x, h.y);
+  ctx.stroke();
+
+  // Red circle.
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#dc3545';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(h.x, h.y, r, 0, 2 * Math.PI);
+  ctx.fill();
+  ctx.stroke();
+
+  // White "×".
+  const arm = r * 0.45;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(h.x - arm, h.y - arm);
+  ctx.lineTo(h.x + arm, h.y + arm);
+  ctx.moveTo(h.x + arm, h.y - arm);
+  ctx.lineTo(h.x - arm, h.y + arm);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 // Returns appropriate CSS cursor style for each handle type/position
 export function getCursorForHandle(handleType, handlePosition) {
+  if (handleType === 'delete') {
+    return 'pointer';
+  }
+
   if (handleType === 'rotate') {
     return 'grab';
   }

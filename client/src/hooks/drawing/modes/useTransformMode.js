@@ -10,7 +10,43 @@ import {
 import { detectHandle, getCursorForHandle } from "../../../utils/handles";
 import { isCoarsePointerEvent, COARSE_HANDLE_HIT_SCALE } from "../../../utils/pointerType";
 import { calculateTextBbox, resizeTextBox, ensureTextBox, refreshTextBounds } from "../../../utils/textBbox";
+import { resizeImageBox, refreshImageBounds } from "../../../utils/imageBbox";
 import { logger } from "../../../utils/logger";
+
+// Force a proportional (uniform) scale for images: all handles keep aspect ratio regardless of
+// Shift. Takes the larger magnitude and reapplies each axis's sign so mirror-drags still work.
+function uniformScale(scaleX, scaleY) {
+  const s = Math.max(Math.abs(scaleX), Math.abs(scaleY));
+  return { scaleX: (scaleX < 0 ? -s : s), scaleY: (scaleY < 0 ? -s : s) };
+}
+
+// Restore an object to a resize snapshot. Text/image restore exact fields (box dims clamp, so
+// reciprocal scaling can't undo them); strokes restore their points. Returns nothing (mutates).
+function restoreResizeSnapshot(stroke, snap) {
+  if (stroke.type === 'text') {
+    stroke.x = snap.x; stroke.y = snap.y; stroke.fontSize = snap.fontSize;
+    stroke.config = structuredClone(snap.config);
+    stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config);
+  } else if (stroke.type === 'image') {
+    stroke.x = snap.x; stroke.y = snap.y; stroke.width = snap.width; stroke.height = snap.height;
+    refreshImageBounds(stroke);
+  } else {
+    stroke.points = [...snap];
+    stroke.bbox = computeBoundingBox(stroke.points);
+  }
+}
+
+// Restore an object to a rotate snapshot (anchor {x,y} for text/image; points for strokes).
+function restoreRotateSnapshot(stroke, snap) {
+  if (stroke.type === 'text') {
+    Object.assign(stroke, snap); refreshTextBounds(stroke);
+  } else if (stroke.type === 'image') {
+    Object.assign(stroke, snap); refreshImageBounds(stroke);
+  } else {
+    stroke.points = [...snap];
+    stroke.bbox = computeBoundingBox(stroke.points);
+  }
+}
 
 /**
  * Transform mode handler - move, resize, and rotate selected strokes
@@ -112,7 +148,29 @@ export function useTransformMode({
       isCoarsePointerEvent(e) ? COARSE_HANDLE_HIT_SCALE : 1
     );
     if (handle) {
-      if (handle.type === "resize") {
+      if (handle.type === "delete") {
+        // Delete button tapped — remove the whole selection (incl. auto-included attached text).
+        // Mirrors useKeyboardMode.handleDeleteSelected's per-type undo payload so undo restores it.
+        const toDelete = getSelectedStrokes();
+        const strokeIds = toDelete.map(s => s.id);
+        const deletedStrokeData = toDelete.map(stroke => {
+          if (stroke.type === 'text') {
+            return { index: 0, stroke: { id: stroke.id, type: 'text', text: stroke.text, x: stroke.x, y: stroke.y,
+              fontSize: stroke.fontSize, config: stroke.config, attachedTo: stroke.attachedTo, bbox: stroke.bbox } };
+          }
+          if (stroke.type === 'image') {
+            return { index: 0, stroke: { id: stroke.id, type: 'image', src: stroke.src, x: stroke.x, y: stroke.y,
+              width: stroke.width, height: stroke.height, config: stroke.config, attachedTo: stroke.attachedTo, bbox: stroke.bbox } };
+          }
+          return { index: 0, stroke: { id: stroke.id, points: stroke.points, config: stroke.config } };
+        });
+        if (strokeIds.length > 0) {
+          operationManager.deleteStrokes(strokeIds, deletedStrokeData);
+          selectedStrokeIdsRef.current.clear();
+          redrawCanvas();
+        }
+        return { handled: true, mode: "transform-delete" };
+      } else if (handle.type === "resize") {
         // Enter resize mode
         isResizing.current = true;
         resizeHandle.current = handle;
@@ -131,6 +189,14 @@ export function useTransformMode({
               y: stroke.y,
               fontSize: stroke.fontSize,
               config: structuredClone(stroke.config),
+            });
+          } else if (stroke.type === 'image') {
+            // Store original image geometry (no points to spread)
+            resizeStartPoints.current.set(stroke.id, {
+              x: stroke.x,
+              y: stroke.y,
+              width: stroke.width,
+              height: stroke.height,
             });
           } else {
             // Store original stroke points
@@ -154,8 +220,8 @@ export function useTransformMode({
         rotateStartPoints.current = new Map();
         const selectedStrokes = getSelectedStrokes();
         selectedStrokes.forEach((stroke) => {
-          if (stroke.type === 'text') {
-            // Store original text position
+          if (stroke.type === 'text' || stroke.type === 'image') {
+            // Store original anchor position (text/image orbit the center, no points)
             rotateStartPoints.current.set(stroke.id, {
               x: stroke.x,
               y: stroke.y
@@ -180,8 +246,8 @@ export function useTransformMode({
       moveStartPositions.current = [];
       const selectedStrokes = getSelectedStrokes();
       selectedStrokes.forEach((stroke) => {
-        if (stroke.type === 'text') {
-          // Store text position
+        if (stroke.type === 'text' || stroke.type === 'image') {
+          // Store position (text/image move by x/y, no points)
           moveStartPositions.current.push({
             id: stroke.id,
             x: stroke.x,
@@ -241,6 +307,14 @@ export function useTransformMode({
               refreshTextBounds(stroke);
               resizeTextBox(stroke, scaleX, scaleY, anchorPoint);
             }
+          } else if (stroke.type === 'image') {
+            const originalData = resizeStartPoints.current.get(stroke.id);
+            if (originalData) {
+              // Restore then rescale with a forced-uniform factor (proportional only).
+              Object.assign(stroke, originalData);
+              const u = uniformScale(scaleX, scaleY);
+              resizeImageBox(stroke, u.scaleX, u.scaleY, anchorPoint);
+            }
           } else {
             // Resize stroke preview
             const originalPoints = resizeStartPoints.current.get(stroke.id);
@@ -277,8 +351,8 @@ export function useTransformMode({
         // Apply rotation to all selected strokes (preview)
         const selectedStrokes = getSelectedStrokes();
         selectedStrokes.forEach((stroke) => {
-          if (stroke.type === 'text') {
-            // Rotate text position preview
+          if (stroke.type === 'text' || stroke.type === 'image') {
+            // Rotate text/image anchor preview (both orbit the center, stay upright)
             const originalData = rotateStartPoints.current.get(stroke.id);
             if (originalData) {
               const dx = originalData.x - center.x;
@@ -289,8 +363,11 @@ export function useTransformMode({
               stroke.x = center.x + (dx * cos - dy * sin);
               stroke.y = center.y + (dx * sin + dy * cos);
 
-              // Update bbox using accurate measurement
-              stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config);
+              if (stroke.type === 'text') {
+                stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config);
+              } else {
+                refreshImageBounds(stroke);
+              }
             }
           } else {
             // Rotate stroke preview
@@ -385,33 +462,20 @@ export function useTransformMode({
         const selectedStrokes = getSelectedStrokes();
         selectedStrokes.forEach((stroke) => {
           const originalData = resizeStartPoints.current.get(stroke.id);
-          if (originalData) {
-            if (stroke.type === 'text') {
-              // Restore original text state
-              stroke.x = originalData.x;
-              stroke.y = originalData.y;
-              stroke.fontSize = originalData.fontSize;
-              stroke.config = structuredClone(originalData.config);
-
-              // Restore bbox using accurate measurement
-              stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config);
-            } else {
-              // Restore original stroke points
-              stroke.points = [...originalData];
-              stroke.bbox = computeBoundingBox(stroke.points);
-            }
-          }
+          if (originalData) restoreResizeSnapshot(stroke, originalData);
         });
 
         // Capture what the op/inverse need BEFORE the teardown clears the refs below.
         const handlePosition = resizeHandle.current.position;
         const originalBboxForOp = originalCombinedBbox; // pre-resize bbox for the edge-translate math
+        // Exact per-object snapshots so undo restores clamped box dims (text + image both need this).
         const textOriginals = {};
+        const imageOriginals = {};
         selectedStrokes.forEach((stroke) => {
-          if (stroke.type === 'text') {
-            const orig = resizeStartPoints.current.get(stroke.id);
-            if (orig) textOriginals[stroke.id] = structuredClone(orig);
-          }
+          const orig = resizeStartPoints.current.get(stroke.id);
+          if (!orig) return;
+          if (stroke.type === 'text') textOriginals[stroke.id] = structuredClone(orig);
+          else if (stroke.type === 'image') imageOriginals[stroke.id] = structuredClone(orig);
         });
 
         // Reset resize state BEFORE calling operation manager
@@ -432,7 +496,8 @@ export function useTransformMode({
               anchorPoint,
               handlePosition,
               textOriginals,
-              originalBboxForOp
+              originalBboxForOp,
+              imageOriginals
             );
           }
         }
@@ -441,22 +506,7 @@ export function useTransformMode({
         const selectedStrokes = getSelectedStrokes();
         selectedStrokes.forEach((stroke) => {
           const originalData = resizeStartPoints.current.get(stroke.id);
-          if (originalData) {
-            if (stroke.type === 'text') {
-              // Restore original text state
-              stroke.x = originalData.x;
-              stroke.y = originalData.y;
-              stroke.fontSize = originalData.fontSize;
-              stroke.config = structuredClone(originalData.config);
-
-              // Restore bbox using accurate measurement
-              stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config);
-            } else {
-              // Restore original stroke points
-              stroke.points = [...originalData];
-              stroke.bbox = computeBoundingBox(stroke.points);
-            }
-          }
+          if (originalData) restoreResizeSnapshot(stroke, originalData);
         });
 
         isResizing.current = false;
@@ -486,15 +536,7 @@ export function useTransformMode({
         const selectedStrokes = getSelectedStrokes();
         selectedStrokes.forEach((stroke) => {
           const originalPoints = rotateStartPoints.current.get(stroke.id);
-          if (originalPoints) {
-            if (stroke.type === 'text') {
-              Object.assign(stroke, originalPoints);
-              refreshTextBounds(stroke);
-            } else {
-              stroke.points = [...originalPoints];
-              stroke.bbox = computeBoundingBox(stroke.points);
-            }
-          }
+          if (originalPoints) restoreRotateSnapshot(stroke, originalPoints);
         });
 
         // Reset rotate state BEFORE calling operation manager
@@ -521,15 +563,7 @@ export function useTransformMode({
         const selectedStrokes = getSelectedStrokes();
         selectedStrokes.forEach((stroke) => {
           const originalPoints = rotateStartPoints.current.get(stroke.id);
-          if (originalPoints) {
-            if (stroke.type === 'text') {
-              Object.assign(stroke, originalPoints);
-              refreshTextBounds(stroke);
-            } else {
-              stroke.points = [...originalPoints];
-              stroke.bbox = computeBoundingBox(stroke.points);
-            }
-          }
+          if (originalPoints) restoreRotateSnapshot(stroke, originalPoints);
         });
 
         isRotating.current = false;
@@ -563,17 +597,7 @@ export function useTransformMode({
       const selectedStrokes = getSelectedStrokes();
       selectedStrokes.forEach((stroke) => {
         const originalData = resizeStartPoints.current.get(stroke.id);
-        if (!originalData) return;
-        if (stroke.type === 'text') {
-          stroke.x = originalData.x;
-          stroke.y = originalData.y;
-          stroke.fontSize = originalData.fontSize;
-          stroke.config = structuredClone(originalData.config);
-          stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config);
-        } else {
-          stroke.points = [...originalData];
-          stroke.bbox = computeBoundingBox(stroke.points);
-        }
+        if (originalData) restoreResizeSnapshot(stroke, originalData);
       });
       isResizing.current = false;
       resizeHandle.current = null;
@@ -588,14 +612,7 @@ export function useTransformMode({
       const selectedStrokes = getSelectedStrokes();
       selectedStrokes.forEach((stroke) => {
         const originalPoints = rotateStartPoints.current.get(stroke.id);
-        if (!originalPoints) return;
-        if (stroke.type === 'text') {
-          Object.assign(stroke, originalPoints);
-          refreshTextBounds(stroke);
-        } else {
-          stroke.points = [...originalPoints];
-          stroke.bbox = computeBoundingBox(stroke.points);
-        }
+        if (originalPoints) restoreRotateSnapshot(stroke, originalPoints);
       });
       isRotating.current = false;
       rotateStartAngle.current = null;

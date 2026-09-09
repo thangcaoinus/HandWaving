@@ -1,4 +1,5 @@
 import { validTextState } from '../shared/textBox.js';
+import { validImageState } from '../shared/imageObject.js';
 // Socket.IO server - handles real-time collaboration with room management and operation broadcasting.
 // Room lifecycle: join with auth/invite token → load canvas from DB → broadcast as operations → cleanup on disconnect.
 
@@ -266,20 +267,28 @@ io.on("connection", (socket) => {
         });
 
         if (canvas?.data?.strokes) {
-          // Convert strokes to STROKE_ADD operations for room sync
-          initialOperations = canvas.data.strokes.map(stroke => ({
-            type: stroke.type === 'text' ? 'TEXT_ADD' : 'STROKE_ADD',
-            id: crypto.randomUUID(),
-            timestamp: Date.now(),
-            userId: stroke.userId || 'system',
-            username: stroke.username || 'System',
-            payload: stroke.type === 'text' ? { textId: stroke.id, text: stroke.text, x: stroke.x, y: stroke.y, fontSize: stroke.fontSize, config: stroke.config, attachedTo: stroke.attachedTo } : {
-              strokeId: stroke.id,
-              points: stroke.points,
-              config: stroke.config
-            },
-            inverse: null
-          }));
+          // Replay each persisted object as the op that recreates it. Three object types now:
+          // text -> TEXT_ADD, image -> IMAGE_ADD, everything else -> STROKE_ADD. Miscategorizing an
+          // image as STROKE_ADD would drop its src, so the image branch is required.
+          initialOperations = canvas.data.strokes.map(stroke => {
+            const base = {
+              id: crypto.randomUUID(),
+              timestamp: Date.now(),
+              userId: stroke.userId || 'system',
+              username: stroke.username || 'System',
+              inverse: null,
+            };
+            if (stroke.type === 'text') {
+              return { ...base, type: 'TEXT_ADD',
+                payload: { textId: stroke.id, text: stroke.text, x: stroke.x, y: stroke.y, fontSize: stroke.fontSize, config: stroke.config, attachedTo: stroke.attachedTo } };
+            }
+            if (stroke.type === 'image') {
+              return { ...base, type: 'IMAGE_ADD',
+                payload: { imageId: stroke.id, src: stroke.src, x: stroke.x, y: stroke.y, width: stroke.width, height: stroke.height, config: stroke.config, attachedTo: stroke.attachedTo } };
+            }
+            return { ...base, type: 'STROKE_ADD',
+              payload: { strokeId: stroke.id, points: stroke.points, config: stroke.config } };
+          });
           logger.info('Canvas data loaded from database', {
             strokeCount: initialOperations.length,
             canvasId: logger.sanitizeId(roomId)
@@ -422,6 +431,11 @@ io.on("connection", (socket) => {
          !operation.payload.updates.every(u => u && typeof u.textId === 'string' && validTextState(u.after) && validTextState(u.before)))) return;
     if (operation.type === 'TEXT_ADD' && !validTextState(operation.payload)) return;
 
+    // Images carry a base64 data URI. validImageState enforces the data:image/ prefix, a length cap
+    // (DoS guard), and finite geometry. The `default` switch case below would otherwise broadcast an
+    // IMAGE_ADD unvalidated, so this gate is required — not optional.
+    if (operation.type === 'IMAGE_ADD' && !validImageState(operation.payload)) return;
+
     const room = rooms.get(roomId);
     if (!room) {
       logger.warn('Operation received for non-existent room', {
@@ -430,7 +444,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    if (['TEXT_ADD', 'TEXT_EDIT', 'TEXT_DELETE', 'TEXT_UPDATE'].includes(operation.type)) {
+    if (['TEXT_ADD', 'TEXT_EDIT', 'TEXT_DELETE', 'TEXT_UPDATE', 'IMAGE_ADD', 'IMAGE_DELETE'].includes(operation.type)) {
       const member = room.users.get(socket.id);
       if (!member || member.role === 'VIEWER') return;
       operation.userId = member.userId;
@@ -479,6 +493,8 @@ io.on("connection", (socket) => {
       case 'TEXT_ADD':
       case 'TEXT_EDIT':
       case 'TEXT_DELETE':
+      case 'IMAGE_ADD':
+      case 'IMAGE_DELETE':
         // Add to operation history
         room.operations.push({
           ...operation,
@@ -584,7 +600,7 @@ io.on("connection", (socket) => {
     } catch (error) {
       logger.error('Failed to change anonymous user role', {
         error: error.message,
-        canvasId: logger.sanitizeId(roomId)
+        canvasId: logger.sanitizeId(canvasId)
       });
       socket.emit("room:error", { message: "Failed to change role" });
     }

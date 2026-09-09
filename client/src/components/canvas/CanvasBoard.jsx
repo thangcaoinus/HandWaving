@@ -8,6 +8,7 @@ import { useViewportContext } from "../../contexts/ViewportContext";
 import InlineTextEditor from '../canvas/InlineTextEditor';
 import { Loader2, Eye } from 'lucide-react';
 import { ensureTextBox, refreshTextBounds } from '../../utils/textBbox';
+import { refreshImageBounds } from '../../utils/imageBbox';
 import { logger } from '../../utils/logger';
 
 export default function CanvasBoard() {
@@ -130,7 +131,10 @@ export default function CanvasBoard() {
         // Convert Array to Map for unified storage
         allStrokesRef.current.clear();
         data.strokes.forEach(stroke => {
-          allStrokesRef.current.set(stroke.id, stroke.type === 'text' ? refreshTextBounds(stroke) : stroke);
+          const withBounds = stroke.type === 'text' ? refreshTextBounds(stroke)
+            : stroke.type === 'image' ? refreshImageBounds(stroke)
+            : stroke;
+          allStrokesRef.current.set(stroke.id, withBounds);
         });
         logger.log('✅ allStrokesRef.current now has:', allStrokesRef.current.size, 'strokes');
         // Clear selection to prevent stale stroke IDs from causing issues

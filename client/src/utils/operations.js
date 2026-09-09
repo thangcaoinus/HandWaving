@@ -1,4 +1,5 @@
 import { validTextState } from '../../../shared/textBox';
+import { validImageState } from '../../../shared/imageObject';
 import { generateUniqueId } from './idGenerator';
 
 // Operation types enum
@@ -19,6 +20,8 @@ export const OperationType = {
   TEXT_ADD: 'TEXT_ADD',
   TEXT_EDIT: 'TEXT_EDIT',
   TEXT_DELETE: 'TEXT_DELETE',
+  IMAGE_ADD: 'IMAGE_ADD',
+  IMAGE_DELETE: 'IMAGE_DELETE',
 };
 
 // Generate unique operation ID
@@ -158,6 +161,28 @@ export const TextDeletePayload = {
   })
 };
 
+// Image payloads. Fields sit at the payload top level so validImageState (which reads
+// src/x/y/width/height directly) can validate the payload as-is, client and server alike.
+export const ImageAddPayload = {
+  create: (imageId, src, x, y, width, height, config = null, attachedTo = null) => ({
+    imageId,
+    src,
+    x,
+    y,
+    width,
+    height,
+    config,
+    attachedTo
+  })
+};
+
+export const ImageDeletePayload = {
+  create: (imageId, imageData) => ({
+    imageId,
+    imageData
+  })
+};
+
 // Operation validation
 export const validateOperation = (operation) => {
   if (!operation || typeof operation !== 'object') {
@@ -177,6 +202,10 @@ export const validateOperation = (operation) => {
        !operation.payload.updates.every(u => u && typeof u.textId === 'string' && validTextState(u.after) && validTextState(u.before)))) {
     return { valid: false, error: 'Invalid text update' };
   }
+
+  if (operation.type === OperationType.IMAGE_ADD && !validImageState(operation.payload)) {
+    return { valid: false, error: 'Invalid image add' };
+  }
   return { valid: true };
 };
 
@@ -185,6 +214,7 @@ export const canOperationsConflict = (op1, op2) => {
   // Simple conflict detection - operations on same strokes
   const getStrokeIds = (op) => {
     if (op.payload.textId) return [op.payload.textId];
+    if (op.payload.imageId) return [op.payload.imageId];
     if (op.payload.updates) return op.payload.updates.map(u => u.textId);
     if (op.payload.strokeId) return [op.payload.strokeId];
     if (op.payload.strokeIds) return op.payload.strokeIds;

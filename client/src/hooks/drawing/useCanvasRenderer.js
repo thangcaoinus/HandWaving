@@ -1,6 +1,8 @@
 import { useCallback } from "react";
 import { getTextImage } from "../../utils/textRasterCache";
+import { getImage } from "../../utils/imageCache";
 import { getTextLayout, refreshTextBounds } from '../../utils/textBbox';
+import { refreshImageBounds } from '../../utils/imageBbox';
 import { useCanvasContext } from '../../contexts/CanvasContext';
 import { logger } from "../../utils/logger";
 
@@ -55,6 +57,40 @@ function renderTextObject(ctx, stroke, currentZoom, triggerRedraw, atX, atY) {
   }
 }
 
+/**
+ * Render an image object onto the canvas. The decoded HTMLImageElement lives in imageCache
+ * (keyed by src), never on the object. `atX/atY` let move-previews draw at an offset.
+ * Placeholder while decoding; a "broken image" outline if the data URI fails to decode.
+ */
+function renderImageObject(ctx, stroke, triggerRedraw, atX, atY) {
+  if (!stroke.src) return;
+  const x = atX ?? stroke.x;
+  const y = atY ?? stroke.y;
+  const { width, height } = stroke;
+  const { image, ready, failed } = getImage(stroke.src, triggerRedraw);
+
+  if (ready && image) {
+    ctx.drawImage(image, x, y, width, height);
+  } else if (failed) {
+    // Un-decodable src: a thin outlined box with an X so it's visibly broken, not silently gone.
+    ctx.save();
+    ctx.strokeStyle = 'rgba(200, 60, 60, 0.8)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, width, height);
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + width, y + height);
+    ctx.moveTo(x + width, y); ctx.lineTo(x, y + height);
+    ctx.stroke();
+    ctx.restore();
+  } else {
+    // Faint placeholder during the brief decode window.
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+    ctx.fillRect(x, y, width, height);
+    ctx.restore();
+  }
+}
+
 export function useCanvasRenderer({
   canvasRef,
   viewport,
@@ -88,6 +124,7 @@ export function useCanvasRenderer({
   translatePoints,
   drawResizeHandles,
   drawRotationHandle,
+  drawDeleteHandle,
   computeBoundingBox,
 }) {
   const { textDraftRef, textCreationRef, notifyCanvasChange } = useCanvasContext();
@@ -120,6 +157,7 @@ export function useCanvasRenderer({
     // Step 5 & 6: Draw all strokes and text from unified storage (exclude selected if moving)
     allStrokesRef.current.forEach((stroke) => {
       if (stroke.type === 'text') refreshTextBounds(stroke);
+      else if (stroke.type === 'image') refreshImageBounds(stroke);
       if (textDraftRef.current?.object.id === stroke.id) return;
       // Skip selected strokes if we're moving them (they'll be drawn with preview)
       if (isMoving.current && selectedStrokeIdsRef.current.has(stroke.id)) {
@@ -137,6 +175,9 @@ export function useCanvasRenderer({
       if (stroke.type === 'text') {
         // Draw text object as rendered Markdown/KaTeX raster
         renderTextObject(ctx, stroke, currentZoom, triggerRedraw);
+      } else if (stroke.type === 'image') {
+        // Draw image object (cached decoded raster)
+        renderImageObject(ctx, stroke, triggerRedraw);
       } else if (stroke.points && Array.isArray(stroke.points)) {
         // Draw regular stroke
         const { points, config } = stroke;
@@ -233,6 +274,15 @@ export function useCanvasRenderer({
                   stroke.x + currentMoveOffset.current.x,
                   stroke.y + currentMoveOffset.current.y
                 );
+              } else if (stroke.type === 'image') {
+                // Draw moved image at offset (reuses the cached decode)
+                renderImageObject(
+                  ctx,
+                  stroke,
+                  triggerRedraw,
+                  stroke.x + currentMoveOffset.current.x,
+                  stroke.y + currentMoveOffset.current.y
+                );
               } else if (stroke.points && Array.isArray(stroke.points)) {
                 // Draw moved stroke
                 const offsetPoints = translatePoints(
@@ -287,9 +337,10 @@ export function useCanvasRenderer({
         // Step 14: Draw single combined bounding box
         drawBoundingBox(ctx, combinedBbox);
 
-        // Step 15: Draw resize and rotation handles on combined bbox
+        // Step 15: Draw resize, rotation, and delete handles on combined bbox
         drawResizeHandles(ctx, combinedBbox);
         drawRotationHandle(ctx, combinedBbox);
+        drawDeleteHandle(ctx, combinedBbox);
       }
     }
 
@@ -356,6 +407,7 @@ export function useCanvasRenderer({
     translatePoints,
     drawResizeHandles,
     drawRotationHandle,
+    drawDeleteHandle,
     computeBoundingBox,
   ]);
 

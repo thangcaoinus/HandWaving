@@ -8,6 +8,7 @@ import { useSocket } from "../contexts/SocketContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useCanvasPersistence } from "../contexts/CanvasPersistenceContext";
 import { useOperationManager } from "./useOperationManager";
+import { useImageInsert } from "./useImageInsert";
 import { useCanvasHelpers } from "./drawing/useCanvasHelpers";
 import { useCanvasRenderer } from "./drawing/useCanvasRenderer";
 import { usePanMode } from "./drawing/modes/usePanMode";
@@ -19,7 +20,8 @@ import { useKeyboardMode } from "./drawing/modes/useKeyboardMode";
 import { useTextMode } from "./drawing/modes/useTextMode";
 import { useGestureArbiter } from "./useGestureArbiter";
 import { computeBoundingBox, translatePoints, pointInBoundingBox } from "../utils/geometry";
-import { drawResizeHandles, drawRotationHandle } from "../utils/handles";
+import { refreshImageBounds } from "../utils/imageBbox";
+import { drawResizeHandles, drawRotationHandle, drawDeleteHandle } from "../utils/handles";
 
 export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
   const { viewport } = useViewportContext();
@@ -50,6 +52,16 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     redrawCallbackRef,
     username,
     markUnsavedChanges  // Pass change tracking callback
+  );
+
+  // Image insertion (shared with the toolbar button). Paste-path errors surface via alert() since
+  // this hook has no modal host — rare (huge image / corrupt clipboard), but must fail loudly.
+  const { insertImageFromBlob } = useImageInsert(
+    () => operationManager,
+    canvas.allStrokesRef,
+    viewport,
+    canvasRef,
+    (msg) => { if (typeof window !== 'undefined') window.alert(msg); }
   );
 
   // Initialize canvas helpers
@@ -175,7 +187,8 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
       const stroke = canvas.textDraftRef.current?.object.id === strokeId ? canvas.textDraftRef.current.object : canvas.allStrokesRef.current.get(strokeId);
       if (stroke) {
         if (!stroke.bbox) {
-          stroke.bbox = computeBoundingBox(stroke.points);
+          if (stroke.type === 'image') refreshImageBounds(stroke);
+          else stroke.bbox = computeBoundingBox(stroke.points);
         }
 
         minX = Math.min(minX, stroke.bbox.minX);
@@ -302,6 +315,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     translatePoints,
     drawResizeHandles,
     drawRotationHandle,
+    drawDeleteHandle,
     computeBoundingBox,
   });
 
@@ -517,7 +531,8 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
         for (let i = strokesArray.length - 1; i >= 0; i--) {
           const stroke = strokesArray[i];
           if (!stroke.bbox) {
-            stroke.bbox = computeBoundingBox(stroke.points);
+            if (stroke.type === 'image') refreshImageBounds(stroke);
+            else stroke.bbox = computeBoundingBox(stroke.points);
           }
           if (pointInBoundingBox(currentPoint, stroke.bbox, 5)) {
             hoveredStroke = stroke;
@@ -629,7 +644,31 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     };
 
     const handleTextEscape = e => { if (e.key === 'Escape') textMode.cancelCreation(); };
+
+    // OS-clipboard image paste (a REAL ClipboardEvent, distinct from keyboardMode.handlePaste which
+    // only replays internally-copied objects). Reads an image blob and inserts it at the cursor.
+    const handleImagePaste = async (e) => {
+      if (!canEdit) return;
+      const active = document.activeElement;
+      // Don't hijack paste while typing in an input/textarea or the text editor session.
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.closest?.('[data-text-edit-session]'))) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type && item.type.startsWith('image/')) {
+          const blob = item.getAsFile();
+          if (blob) {
+            e.preventDefault();
+            // Insert at the last known cursor position (canvas coords), matching internal paste.
+            await insertImageFromBlob(blob, lastMousePosRef.current);
+          }
+          return; // one image per paste
+        }
+      }
+    };
+
     window.addEventListener('keydown', handleTextEscape);
+    window.addEventListener('paste', handleImagePaste);
     window.addEventListener('text-fonts-ready', redrawCanvas);
     canvas.addEventListener("pointerdown", handlePointerDown);
     canvas.addEventListener("pointermove", handlePointerMove);
@@ -647,6 +686,7 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
 
     return () => {
       window.removeEventListener('keydown', handleTextEscape);
+      window.removeEventListener('paste', handleImagePaste);
       window.removeEventListener('text-fonts-ready', redrawCanvas);
       canvas.removeEventListener("pointerdown", handlePointerDown);
       canvas.removeEventListener("pointermove", handlePointerMove);
@@ -687,6 +727,8 @@ export function useDraw(canvasRef, drawCallback, textEditorRef = null) {
     socket,
     operationManager,
     getCombinedBoundingBox,
+    insertImageFromBlob,
+    canEdit,
   ]);
 
   // Export undo/redo handlers for UI buttons

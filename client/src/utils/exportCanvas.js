@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import { drawLine } from "./draw";
 import { ensureTextRastersReady, peekTextImage } from "./textRasterCache";
+import { ensureImagesReady, peekImage } from "./imageCache";
 
 // Fixed high supersample bucket for print-quality exported math/text.
 const EXPORT_ZOOM_BUCKET = 2;
@@ -29,7 +30,7 @@ function calculateFullBoundingBox(strokes) {
       minY = Math.min(minY, stroke.bbox.minY);
       maxX = Math.max(maxX, stroke.bbox.maxX);
       maxY = Math.max(maxY, stroke.bbox.maxY);
-    } else {
+    } else if (Array.isArray(stroke.points)) {
       stroke.points.forEach((point) => {
         minX = Math.min(minX, point.x);
         minY = Math.min(minY, point.y);
@@ -77,6 +78,7 @@ async function createFullCanvas(strokes) {
     try { await document.fonts.ready; } catch { /* non-fatal */ }
   }
   await ensureTextRastersReady(strokes, EXPORT_ZOOM_BUCKET);
+  await ensureImagesReady(strokes); // decode image objects so drawImage below has them ready
 
   strokes.forEach((stroke) => {
     if (stroke.type === 'text') {
@@ -85,6 +87,12 @@ async function createFullCanvas(strokes) {
       if (raster && raster.image) {
         // Match the on-canvas origin: (x,y) is the first-line anchor, block at y-fontSize.
         ctx.drawImage(raster.image, stroke.x, stroke.y - stroke.fontSize, raster.w, raster.h);
+      }
+    } else if (stroke.type === 'image') {
+      const img = peekImage(stroke.src);
+      if (img && img.image) {
+        // Image origin is its own top-left (no fontSize offset).
+        ctx.drawImage(img.image, stroke.x, stroke.y, stroke.width, stroke.height);
       }
     } else {
       // Render regular stroke
@@ -190,6 +198,20 @@ export function exportToJSON(strokes, viewport, filename = "canvas.json") {
             x: stroke.x,
             y: stroke.y,
             fontSize: stroke.fontSize,
+            config: stroke.config,
+            attachedTo: stroke.attachedTo,
+            bbox: stroke.bbox,
+          };
+        } else if (stroke.type === 'image') {
+          // Export image object (src is a self-contained data URI)
+          return {
+            id: stroke.id,
+            type: 'image',
+            src: stroke.src,
+            x: stroke.x,
+            y: stroke.y,
+            width: stroke.width,
+            height: stroke.height,
             config: stroke.config,
             attachedTo: stroke.attachedTo,
             bbox: stroke.bbox,

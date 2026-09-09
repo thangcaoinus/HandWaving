@@ -49,6 +49,7 @@ export function useImportStrokes(operationManager, allStrokesRef) {
     // Regenerate IDs to avoid conflicts with existing strokes
     const processedStrokes = strokes.map((stroke, index) => {
       if (stroke.type === 'text') return { ...stroke, id: newIds[index], userId: undefined, username: undefined, attachedTo: idMap.get(stroke.attachedTo) || null };
+      if (stroke.type === 'image') return { ...stroke, id: newIds[index], userId: undefined, username: undefined, attachedTo: idMap.get(stroke.attachedTo) || null };
       // Create clean stroke without userId/username from export
       return {
         id: newIds[index],

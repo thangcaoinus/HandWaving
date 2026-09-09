@@ -6,10 +6,11 @@ import { useAppState } from "../../contexts/AppStateContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCanvasPersistence } from "../../contexts/CanvasPersistenceContext";
 import { useImportStrokes } from "../../hooks/useImportStrokes";
+import { useImageInsert } from "../../hooks/useImageInsert";
 import { exportToPNG, exportToPDF, exportToJSON } from "../../utils/exportCanvas";
 import { triggerImportDialog } from "../../utils/importCanvas";
 import { ConfirmModal, AlertModal } from '../modals/Modal';
-import { Menu, Image, FileText, Save, Grid3x3, LayoutGrid, Upload, Download, Eye, CheckCircle, AlertCircle } from "lucide-react";
+import { Menu, Image, ImagePlus, FileText, Save, Grid3x3, LayoutGrid, Upload, Download, Eye, CheckCircle, AlertCircle } from "lucide-react";
 import { logger } from "../../utils/logger";
 
 export default function MenuButton() {
@@ -21,15 +22,35 @@ export default function MenuButton() {
   const [modalMessage, setModalMessage] = useState("");
   const [importData, setImportData] = useState(null);
   const menuRef = useRef(null);
-  const { allStrokesRef, operationManagerRef } = useCanvasContext();
+  const imageInputRef = useRef(null);
+  const { allStrokesRef, operationManagerRef, canvasRef } = useCanvasContext();
   const { viewport, setZoom, setPan } = useViewportContext();
   const { showGrid, toggleGrid } = useAppState();
   const { user } = useAuth();
   const { isOwner, canEdit } = useCanvasPersistence();
   const navigate = useNavigate();
-  
+
   // Initialize import hook
   const { importStrokes } = useImportStrokes(operationManagerRef.current, allStrokesRef);
+
+  // Image insertion (shared logic with the paste path); errors surface via the existing error modal.
+  const { insertImageFromBlob } = useImageInsert(
+    () => operationManagerRef.current,
+    allStrokesRef,
+    viewport,
+    canvasRef,
+    (msg) => { setModalMessage(msg); setShowErrorModal(true); }
+  );
+
+  const handleImageFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setModalMessage('Please choose an image file.'); setShowErrorModal(true); return; }
+    if (file.size > 15 * 1024 * 1024) { setModalMessage('Image is too large (max 15MB).'); setShowErrorModal(true); return; }
+    setIsOpen(false);
+    await insertImageFromBlob(file); // no center → viewport center
+  };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -152,6 +173,14 @@ export default function MenuButton() {
 
   return (
     <div className="fixed top-4 left-4 z-20" ref={menuRef}>
+      {/* Hidden file input for image insertion */}
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp"
+        onChange={handleImageFileSelect}
+        className="hidden"
+      />
       {/* Menu Button */}
       <button
         className="w-10 h-10 paper-card hover:brightness-[0.97] sketch-panel border-2 border-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] flex items-center justify-center transition-all duration-150 sketch-button active:scale-95"
@@ -226,6 +255,22 @@ export default function MenuButton() {
           </button>
 
           <div className="h-px bg-[color:color-mix(in_srgb,var(--ink)_10%,transparent)] my-2" />
+
+          {/* Insert Image - Only show if user can edit */}
+          {canEdit && (
+            <button
+              onClick={() => imageInputRef.current?.click()}
+              className="w-full px-4 py-2.5 text-left hover:bg-[color:color-mix(in_srgb,var(--coral)_10%,transparent)] flex items-center gap-3 transition-colors group"
+            >
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors bg-[color:color-mix(in_srgb,var(--ink)_7%,transparent)] group-hover:bg-[color:color-mix(in_srgb,var(--coral)_18%,transparent)]">
+                <ImagePlus size={16} strokeWidth={2.5} className="text-[color:var(--ink-soft)] group-hover:text-[color:var(--coral-deep)]" />
+              </div>
+              <div>
+                <div className="font-bold text-sm text-[color:var(--ink)]">Insert Image</div>
+                <div className="text-[10px] text-[color:var(--ink-soft)]">Add a picture to the canvas</div>
+              </div>
+            </button>
+          )}
 
           {/* Import Button - Only show if user can edit */}
           {canEdit && (

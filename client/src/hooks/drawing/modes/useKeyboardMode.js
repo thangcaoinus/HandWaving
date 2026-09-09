@@ -86,7 +86,7 @@ export function useKeyboardMode({
       if (stroke) {
         strokeIdsToDelete.push(stroke.id);
 
-        // Save full stroke data for undo (handles both regular strokes and text)
+        // Save full stroke data for undo (handles regular strokes, text, AND images)
         if (stroke.type === 'text') {
           // Text object - save text-specific properties
           deletedStrokeData.push({
@@ -98,6 +98,23 @@ export function useKeyboardMode({
               x: stroke.x,
               y: stroke.y,
               fontSize: stroke.fontSize,
+              config: stroke.config,
+              attachedTo: stroke.attachedTo,
+              bbox: stroke.bbox
+            },
+          });
+        } else if (stroke.type === 'image') {
+          // Image object - save geometry + src so the STROKE_DELETE inverse rebuilds it as IMAGE_ADD
+          deletedStrokeData.push({
+            index: 0,
+            stroke: {
+              id: stroke.id,
+              type: 'image',
+              src: stroke.src,
+              x: stroke.x,
+              y: stroke.y,
+              width: stroke.width,
+              height: stroke.height,
               config: stroke.config,
               attachedTo: stroke.attachedTo,
               bbox: stroke.bbox
@@ -199,6 +216,24 @@ export function useKeyboardMode({
           minY = Math.min(minY, stroke.bbox.minY);
           maxX = Math.max(maxX, stroke.bbox.maxX);
           maxY = Math.max(maxY, stroke.bbox.maxY);
+        } else if (stroke.type === 'image') {
+          copiedStrokesRef.current.push({
+            type: 'image',
+            src: stroke.src,
+            x: stroke.x,
+            y: stroke.y,
+            width: stroke.width,
+            height: stroke.height,
+            config: stroke.config ? structuredClone(stroke.config) : null,
+            attachedTo: stroke.attachedTo || null,
+            originalId: strokeId,
+            bbox: { ...stroke.bbox }
+          });
+          // Update bounds
+          minX = Math.min(minX, stroke.bbox.minX);
+          minY = Math.min(minY, stroke.bbox.minY);
+          maxX = Math.max(maxX, stroke.bbox.maxX);
+          maxY = Math.max(maxY, stroke.bbox.maxY);
         } else {
           copiedStrokesRef.current.push({
             points: stroke.points.map(p => ({ ...p })),
@@ -277,6 +312,8 @@ export function useKeyboardMode({
     copiedStrokesRef.current.forEach((copiedStroke) => {
       const newId = copiedStroke.type === 'text'
         ? generateUniqueId('text')
+        : copiedStroke.type === 'image'
+        ? generateUniqueId('image')
         : generateUniqueId('stroke');
       idMapping.set(copiedStroke.originalId, newId);
     });
@@ -300,6 +337,29 @@ export function useKeyboardMode({
           y: copiedStroke.y + offsetY,
           fontSize: copiedStroke.fontSize,
           config: structuredClone(copiedStroke.config),
+          attachedTo: newAttachedTo,
+          bbox: {
+            minX: copiedStroke.bbox.minX + offsetX,
+            maxX: copiedStroke.bbox.maxX + offsetX,
+            minY: copiedStroke.bbox.minY + offsetY,
+            maxY: copiedStroke.bbox.maxY + offsetY
+          }
+        };
+      } else if (copiedStroke.type === 'image') {
+        // Image object - offset position and remap attachedTo if present
+        let newAttachedTo = null;
+        if (copiedStroke.attachedTo && idMapping.has(copiedStroke.attachedTo)) {
+          newAttachedTo = idMapping.get(copiedStroke.attachedTo);
+        }
+        return {
+          id: newId,
+          type: 'image',
+          src: copiedStroke.src,
+          x: copiedStroke.x + offsetX,
+          y: copiedStroke.y + offsetY,
+          width: copiedStroke.width,
+          height: copiedStroke.height,
+          config: copiedStroke.config ? structuredClone(copiedStroke.config) : null,
           attachedTo: newAttachedTo,
           bbox: {
             minX: copiedStroke.bbox.minX + offsetX,

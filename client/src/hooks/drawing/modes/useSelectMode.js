@@ -1,4 +1,5 @@
 import { textContainsPoint } from '../../../utils/textBbox';
+import { refreshImageBounds } from '../../../utils/imageBbox';
 import { useRef, useEffect } from "react";
 import { simplify } from "../../../utils/simplify";
 import {
@@ -47,6 +48,14 @@ export function useSelectMode({
     isOwnerRef.current = isOwner;
   }, [canEdit, userId, userRole, isOwner]);
 
+  // Lazily ensure any object has a bbox before a hit test. Images derive theirs from x/y/w/h
+  // (computeBoundingBox(stroke.points) would be null for them); strokes fall back to their points.
+  const ensureBbox = (stroke) => {
+    if (stroke.bbox) return;
+    if (stroke.type === 'image') refreshImageBounds(stroke);
+    else stroke.bbox = computeBoundingBox(stroke.points);
+  };
+
   // Check if user can select a specific stroke
   const canSelectStroke = (stroke) => {
     if (!canEditRef.current) return false; // VIEWER cannot select
@@ -85,9 +94,7 @@ export function useSelectMode({
       let clickedStroke = null;
       for (let i = strokesArray.length - 1; i >= 0; i--) {
         const stroke = strokesArray[i];
-        if (!stroke.bbox) {
-          stroke.bbox = computeBoundingBox(stroke.points);
-        }
+        ensureBbox(stroke);
         if (stroke.type === 'text' ? textContainsPoint(stroke, clickPoint) : pointInBoundingBox(clickPoint, stroke.bbox, 5)) {
           clickedStroke = stroke;
           logger.log('✅ Found clicked stroke at index:', i, 'id:', stroke.id);
@@ -182,9 +189,7 @@ export function useSelectMode({
       // Find all strokes that intersect with the lasso
       allStrokesRef.current.forEach((stroke) => {
         if (!stroke.id) return; // Skip strokes without IDs
-        if (!stroke.bbox) {
-          stroke.bbox = computeBoundingBox(stroke.points);
-        }
+        ensureBbox(stroke);
         if (doesBboxIntersectPolygon(stroke.bbox, simplifiedPath)) {
           // Check ownership before selecting
           if (canSelectStroke(stroke)) {
@@ -224,9 +229,7 @@ export function useSelectMode({
       // Find intersecting strokes
       allStrokesRef.current.forEach((stroke) => {
         if (!stroke.id) return; // Skip strokes without IDs
-        if (!stroke.bbox) {
-          stroke.bbox = computeBoundingBox(stroke.points);
-        }
+        ensureBbox(stroke);
         if (rectangleIntersectsBoundingBox(selectionRect, stroke.bbox)) {
           // Check ownership before selecting
           if (canSelectStroke(stroke)) {
@@ -255,9 +258,7 @@ export function useSelectMode({
     let clickedStroke = null;
     for (let i = strokesArray.length - 1; i >= 0; i--) {
       const stroke = strokesArray[i];
-      if (!stroke.bbox && stroke.points) {
-        stroke.bbox = computeBoundingBox(stroke.points);
-      }
+      ensureBbox(stroke);
       const hit = stroke.type === 'text'
         ? textContainsPoint(stroke, point)
         : stroke.bbox && pointInBoundingBox(point, stroke.bbox, 5);

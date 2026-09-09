@@ -24,12 +24,15 @@ import {
   BatchDeleteStrokesPayload,
   TextAddPayload,
   TextEditPayload,
-  TextDeletePayload
+  TextDeletePayload,
+  ImageAddPayload,
+  ImageDeletePayload
 } from '../utils/operations';
 import { useSocket } from '../contexts/SocketContext';
 import { useCanvasContext } from '../contexts/CanvasContext';
 import { computeBoundingBox, translatePoints, resizePoints, rotatePoints } from '../utils/geometry';
 import { calculateTextBbox, resizeTextBox, refreshTextBounds } from '../utils/textBbox';
+import { refreshImageBounds, resizeImageBox } from '../utils/imageBbox';
 import { logger } from '../utils/logger';
 
 export function useOperationManager(userId, redrawCallbackRef, username = 'Unknown', onChangeCallback = null) {
@@ -100,8 +103,8 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
       strokeIds.forEach(strokeId => {
         const stroke = allStrokesRef.current.get(strokeId);
         if (stroke) {
-          if (stroke.type === 'text') {
-            // Move text by updating x, y coordinates
+          if (stroke.type === 'text' || stroke.type === 'image') {
+            // Move text/image by updating x, y (no points) and shifting bbox edges.
             stroke.x += deltaX;
             stroke.y += deltaY;
             stroke.bbox.minX += deltaX;
@@ -171,6 +174,18 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
             } else {
               resizeTextBox(stroke, scaleX, scaleY, anchorPoint);
             }
+          } else if (stroke.type === 'image') {
+            // Same story as text: box dims clamp, so the inverse restores an exact snapshot rather
+            // than reciprocal-scaling. `restoreText` doubles as the "restore exact" flag for images.
+            if (restoreText && operation.payload.imageOriginals?.[strokeId]) {
+              Object.assign(stroke, structuredClone(operation.payload.imageOriginals[strokeId]));
+              refreshImageBounds(stroke);
+            } else {
+              // Images are proportional-only: force a uniform scale here so EVERY path (local commit,
+              // remote op, redo) matches the proportional preview, regardless of the raw scaleX/scaleY.
+              const s = Math.max(Math.abs(scaleX), Math.abs(scaleY));
+              resizeImageBox(stroke, scaleX < 0 ? -s : s, scaleY < 0 ? -s : s, anchorPoint);
+            }
           } else {
             // Resize regular stroke
             stroke.points = resizePoints(stroke.points, anchorPoint, scaleX, scaleY);
@@ -188,8 +203,9 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
       strokeIds.forEach(strokeId => {
         const stroke = allStrokesRef.current.get(strokeId);
         if (stroke) {
-          if (stroke.type === 'text') {
-            // Rotate text position around center point
+          if (stroke.type === 'text' || stroke.type === 'image') {
+            // Rotate the anchor around the center; text/image stay upright (no glyph/bitmap rotation
+            // — that would need a transform matrix and is out of scope, matching the text stance).
             const dx = stroke.x - centerPoint.x;
             const dy = stroke.y - centerPoint.y;
             const cos = Math.cos(angleDelta);
@@ -198,11 +214,12 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
             stroke.x = centerPoint.x + (dx * cos - dy * sin);
             stroke.y = centerPoint.y + (dx * sin + dy * cos);
 
-            // Note: We don't rotate text rendering itself (would need transform matrix)
-            // Text stays upright but moves around the rotation center
-
-            // Update bbox using accurate measurement
-            stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config);
+            // Update bbox from the new anchor.
+            if (stroke.type === 'text') {
+              stroke.bbox = calculateTextBbox(stroke.text, stroke.x, stroke.y, stroke.fontSize, stroke.config);
+            } else {
+              refreshImageBounds(stroke);
+            }
           } else {
             // Rotate regular stroke
             stroke.points = rotatePoints(stroke.points, centerPoint, angleDelta);
@@ -225,18 +242,25 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
       
       // Add all strokes to unified storage (Map)
       strokes.forEach(stroke => {
-        // Ensure stroke has required properties (handles both regular strokes and text)
+        // Ensure stroke has required properties (handles regular strokes, text, AND images).
+        // NOTE: this guard is load-bearing — copy-paste, import, and undo-of-delete all route
+        // through here, and the `if` has no `else`, so anything that fails is SILENTLY dropped.
         const isValidStroke = stroke.id && stroke.points && stroke.config;
         const isValidText = stroke.id && stroke.type === 'text' && stroke.text !== undefined;
+        const isValidImage = stroke.id && stroke.type === 'image' && stroke.src &&
+          Number.isFinite(stroke.width) && Number.isFinite(stroke.height);
 
-        if (isValidStroke || isValidText) {
+        if (isValidStroke || isValidText || isValidImage) {
           // Add userId/username from operation (marks who created it)
           const strokeWithUser = {
             ...stroke,
             userId: operation.userId,
             username: operation.username,
           };
-          allStrokesRef.current.set(stroke.id, strokeWithUser.type === 'text' ? refreshTextBounds(strokeWithUser) : strokeWithUser);
+          const withBounds = strokeWithUser.type === 'text' ? refreshTextBounds(strokeWithUser)
+            : strokeWithUser.type === 'image' ? refreshImageBounds(strokeWithUser)
+            : strokeWithUser;
+          allStrokesRef.current.set(stroke.id, withBounds);
         }
       });
       
@@ -307,6 +331,29 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
     [OperationType.TEXT_DELETE]: (operation) => {
       const { textId } = operation.payload;
       allStrokesRef.current.delete(textId);
+    },
+
+    [OperationType.IMAGE_ADD]: (operation) => {
+      const { imageId, src, x, y, width, height, config, attachedTo } = operation.payload;
+      const imageData = refreshImageBounds({
+        id: imageId,
+        type: 'image',
+        src,
+        x,
+        y,
+        width,
+        height,
+        config: config || null,
+        attachedTo: attachedTo || null,
+        userId: operation.userId,
+        username: operation.username || username,
+      });
+      allStrokesRef.current.set(imageId, imageData);
+    },
+
+    [OperationType.IMAGE_DELETE]: (operation) => {
+      const { imageId } = operation.payload;
+      allStrokesRef.current.delete(imageId);
     }
   }), [allStrokesRef, userId, username]);
 
@@ -332,7 +379,7 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
         if (operation.inverse?.deletedStrokes) {
           const sortedStrokes = [...operation.inverse.deletedStrokes].sort((a, b) => b.index - a.index);
           return sortedStrokes.map(strokeData => {
-            // Check if it's a text object or regular stroke
+            // Check if it's a text object, image, or regular stroke
             if (strokeData.stroke.type === 'text') {
               // Restore text with all properties including attachedTo
               return createOperation(
@@ -343,6 +390,23 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
                   strokeData.stroke.x,
                   strokeData.stroke.y,
                   strokeData.stroke.fontSize,
+                  strokeData.stroke.config,
+                  strokeData.stroke.attachedTo
+                ),
+                operation.userId,
+                operation.username
+              );
+            } else if (strokeData.stroke.type === 'image') {
+              // Restore image with geometry + src
+              return createOperation(
+                OperationType.IMAGE_ADD,
+                ImageAddPayload.create(
+                  strokeData.stroke.id,
+                  strokeData.stroke.src,
+                  strokeData.stroke.x,
+                  strokeData.stroke.y,
+                  strokeData.stroke.width,
+                  strokeData.stroke.height,
                   strokeData.stroke.config,
                   strokeData.stroke.attachedTo
                 ),
@@ -396,23 +460,28 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
         }
         return null;
 
-      case OperationType.STROKE_RESIZE:
-        // Box dimensions may clamp during resize; text restores its exact snapshot.
+      case OperationType.STROKE_RESIZE: {
+        // Box dimensions may clamp during resize; text AND images restore their exact snapshot
+        // (`restoreText` doubles as the restore-exact flag for images — see the executor).
+        const resizeInversePayload = StrokeResizePayload.create(
+          operation.payload.strokeIds,
+          1 / operation.payload.scaleX,
+          1 / operation.payload.scaleY,
+          operation.payload.anchorPoint,
+          operation.payload.position,
+          operation.payload.textOriginals,
+          true, // restoreText — text/image restore exact values; strokes reciprocal-scale
+          operation.payload.originalBbox
+        );
+        // Thread image snapshots through without widening the positional factory signature.
+        resizeInversePayload.imageOriginals = operation.payload.imageOriginals;
         return createOperation(
           OperationType.STROKE_RESIZE,
-          StrokeResizePayload.create(
-            operation.payload.strokeIds,
-            1 / operation.payload.scaleX,
-            1 / operation.payload.scaleY,
-            operation.payload.anchorPoint,
-            operation.payload.position,
-            operation.payload.textOriginals,
-            true, // restoreText — text restores exact values; strokes reciprocal-scale
-            operation.payload.originalBbox
-          ),
+          resizeInversePayload,
           operation.userId,
           operation.username
         );
+      }
 
       case OperationType.STROKE_ROTATE:
         // Inverse rotate: apply negative angle
@@ -485,6 +554,36 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
               operation.payload.textData.fontSize,
               operation.payload.textData.config,
               operation.payload.textData.attachedTo
+            ),
+            operation.userId,
+            operation.username
+          );
+        }
+        return null;
+
+      case OperationType.IMAGE_ADD:
+        // Inverse: delete the image (carry its data so redo/re-add has the full object)
+        return createOperation(
+          OperationType.IMAGE_DELETE,
+          ImageDeletePayload.create(operation.payload.imageId, operation.payload),
+          operation.userId,
+          operation.username
+        );
+
+      case OperationType.IMAGE_DELETE:
+        // Inverse: re-add the image from the stored data
+        if (operation.payload.imageData) {
+          return createOperation(
+            OperationType.IMAGE_ADD,
+            ImageAddPayload.create(
+              operation.payload.imageId,
+              operation.payload.imageData.src,
+              operation.payload.imageData.x,
+              operation.payload.imageData.y,
+              operation.payload.imageData.width,
+              operation.payload.imageData.height,
+              operation.payload.imageData.config,
+              operation.payload.imageData.attachedTo
             ),
             operation.userId,
             operation.username
@@ -666,11 +765,11 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
     return executeOperation(operation, true, false, true);
   }, [executeOperation, createOperationWithUser]);
 
-  const resizeStrokes = useCallback((strokeIds, scaleX, scaleY, anchorPoint, position = null, textOriginals = null, originalBbox = null) => {
-    const operation = createOperationWithUser(
-      OperationType.STROKE_RESIZE,
-      StrokeResizePayload.create(strokeIds, scaleX, scaleY, anchorPoint, position, textOriginals, false, originalBbox)
-    );
+  const resizeStrokes = useCallback((strokeIds, scaleX, scaleY, anchorPoint, position = null, textOriginals = null, originalBbox = null, imageOriginals = null) => {
+    const payload = StrokeResizePayload.create(strokeIds, scaleX, scaleY, anchorPoint, position, textOriginals, false, originalBbox);
+    // Image snapshots ride alongside text's, without widening the positional factory signature.
+    payload.imageOriginals = imageOriginals;
+    const operation = createOperationWithUser(OperationType.STROKE_RESIZE, payload);
 
     return executeOperation(operation, true);
   }, [executeOperation, createOperationWithUser]);
@@ -718,6 +817,24 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
     const operation = createOperationWithUser(
       OperationType.TEXT_DELETE,
       TextDeletePayload.create(textId, textData)
+    );
+
+    return executeOperation(operation, true);
+  }, [executeOperation, createOperationWithUser]);
+
+  const addImage = useCallback((imageId, src, x, y, width, height, config = null, attachedTo = null) => {
+    const operation = createOperationWithUser(
+      OperationType.IMAGE_ADD,
+      ImageAddPayload.create(imageId, src, x, y, width, height, config, attachedTo)
+    );
+
+    return executeOperation(operation, true);
+  }, [executeOperation, createOperationWithUser]);
+
+  const deleteImage = useCallback((imageId, imageData) => {
+    const operation = createOperationWithUser(
+      OperationType.IMAGE_DELETE,
+      ImageDeletePayload.create(imageId, imageData)
     );
 
     return executeOperation(operation, true);
@@ -814,6 +931,8 @@ export function useOperationManager(userId, redrawCallbackRef, username = 'Unkno
     editText,
     updateTexts,
     deleteText,
+    addImage,
+    deleteImage,
     batchAddStrokes,
     batchDeleteStrokes,
 
